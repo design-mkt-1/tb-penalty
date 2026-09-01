@@ -190,34 +190,48 @@
    The whole scene is one photograph, the goal included, and everything the
    game draws is hung off it.
 
-   assets/img/pitch-training.webp is a training ground at dusk, shot from a
-   free-kick position about thirty metres out and only slightly to one side.
-   The goal is therefore very nearly front-on, but not quite: it is a
-   QUADRILATERAL on screen, not a box. Both posts are vertical, the nearer one
-   is a little taller, and their tops and bases do not quite line up.
+   assets/img/pitch-training.webp is a training ground at dusk, shot square on
+   to the goal from about twenty metres out, at ball height. The goal is
+   therefore a rectangle on screen: both posts the same height, the crossbar
+   parallel to the top of the frame.
 
-   Six numbers describe it, and `python tools/cutout.py` prints all six off the
-   file it has just written:
+   Six numbers still describe it, and `python tools/cutout.py` prints all six
+   off the file it has just written:
 
-       left post   x .2620   top .1971   base .4020
-       right post  x .5859   top .2391   base .3935
+       left post   x .3198   top .2897   base .4428
+       right post  x .6703   top .2890   base .4434
 
    as fractions of the plate. Every position below is interpolated between
    them. Re-run the tool against a new plate and paste what it prints; do not
    nudge these by eye — they were checked by drawing the quad back over the
    photograph and confirming it lands on the painted frame.
 
+   Six rather than four even though the two posts now agree, because a
+   rectangle is just a quadrilateral whose corners happen to line up. Nothing
+   downstream knows the difference: js/aim.js reads the four markers and
+   interpolates inside whatever shape it finds. Collapsing this to four numbers
+   would save nothing and would have to be undone the next time the camera
+   moves.
+
    Left and right, not near and far. Which post is nearer flips the moment the
    camera crosses the goal's axis, and if these were named by depth then every
    consumer would have to know which way round today's plate is — the aim would
    send a rightward drag to the left of the goal, silently, on a plate that
-   looked fine. The perspective is carried by each post having its own top and
-   base, which works whichever side the taller one is on.
+   looked fine.
 
-   How square-on the mouth reads is the thing to check after a re-shoot. The
-   goal here measures 622 x 273 px, about 2.3:1, against the 3:1 of a real goal
-   seen dead on. An earlier plate came back at 1:1 — the camera had been swung
-   round some seventy degrees — and everything hung off it inherited the error. */
+   HOW SQUARE-ON THE MOUTH READS IS THE ONE NUMBER TO CHECK AFTER A RE-SHOOT.
+   A 7.32 x 2.44 m goal is exactly 3:1 seen dead on from ball height. This one
+   measures 673 x 234 px — 2.88:1 — and the two posts agree to within .0007 of
+   the plate's height, which is what "head-on" means as a number rather than as
+   an opinion.
+
+   Two earlier plates were shot at an angle and both failed here: one came back
+   at 1:1, the camera swung round some seventy degrees, and its replacement at
+   2.3:1. The failure is never confined to the photograph. Everything hung off
+   the plate inherits it — most sharply the rack, whose width falls out of its
+   height, so a mouth that reads too square produces a wall wider than the goal
+   it is supposed to stand in front of, and it then covers a prize. Reject the
+   render; do not compensate in the CSS below. */
 .pitch {
   position: relative;
   flex: 1 1 auto;
@@ -230,28 +244,37 @@
   translate: var(--shake-x, 0px) var(--shake-y, 0px);
 
   /* ── the measurement ──────────────────────────────────────── */
-  --gl-x: .2620;  --gl-t: .1971;  --gl-b: .4020;   /* left post  */
-  --gr-x: .5859;  --gr-t: .2391;  --gr-b: .3935;   /* right post */
+  --gl-x: .3198;  --gl-t: .2897;  --gl-b: .4428;   /* left post  */
+  --gr-x: .6703;  --gr-t: .2890;  --gr-b: .4434;   /* right post */
 
-  /* Two figures every placement below is written against, so the arithmetic
-     is stated once: the mouth's width across the plate, and where its base
-     line sits on average. */
-  --g-w: calc(var(--gr-x) - var(--gl-x));          /* .3239 */
-  --g-base: calc((var(--gl-b) + var(--gr-b)) / 2); /* .3978 */
-  --g-cx: calc((var(--gl-x) + var(--gr-x)) / 2);   /* .4240 */
+  /* Four figures every placement below is written against, so the arithmetic
+     is stated once: the mouth's width across the plate, where its base line
+     sits, where its centre is, and how tall it is. */
+  --g-w: calc(var(--gr-x) - var(--gl-x));          /* .3505 */
+  --g-base: calc((var(--gl-b) + var(--gr-b)) / 2); /* .4431 */
+  --g-cx: calc((var(--gl-x) + var(--gr-x)) / 2);   /* .4951 */
+  /* The mouth's own height as a fraction of the plate's height. The rack is
+     sized and stood off this, so it is written once here rather than typed as
+     a literal into each of the two places that want it — which is how the last
+     re-shoot left a stale .1796 behind. */
+  --g-h: calc((var(--gl-b) - var(--gl-t) + var(--gr-b) - var(--gr-t)) / 2);
 
-  /* The goal does not sit in the middle of the photograph — it is at .424 of
-     its width, left of centre. Hanging the plate on the stage's centre line
-     therefore hangs the goal left of it, and on a 390px phone that put the
-     left post 11px from the screen edge with both left-hand prizes half off
-     it. This slides the photograph right by exactly the offset between the
-     plate's centre and the goal's, which centres the mouth and leaves the
-     posts about 70px clear on each side.
+  /* Slides the photograph sideways so the mouth lands on the stage's centre
+     line whatever the plate does. On this head-on plate the goal is already at
+     .4951 of the width, so the shift is half a percent and invisible — but it
+     stays, because on the previous plate the goal sat at .424 and hanging the
+     photograph on the centre put the left post 11px from a 390px phone's edge
+     with both left-hand prizes half off it. Deleting it because today's render
+     happens not to need it would mean rediscovering that the next time one
+     comes back slightly off-centre.
 
      Everything anchored to the plate has to carry the same shift or it comes
-     away from the photograph: .pitch::before, .goal__c, .target and
-     .dummies-zone all add it. There is no fifth place — the hit marker is
-     written by js/game.js from rendered rects, so it inherits it. */
+     away from the photograph. There are FIVE such rules: .pitch::before,
+     .goal__c, .target, .dummies-zone and .msg. The caption was missed when this
+     was introduced and drifted off the goal by the width of the shift, which
+     went unseen only because the plate that followed happened to be centred.
+     The hit marker needs nothing — js/game.js writes it from rendered rects, so
+     it inherits the shift already. */
   --plate-x: calc(var(--plate-w) * (.5 - var(--g-cx)));
 
   /* How much of the photograph is on screen. Bigger means a closer camera.
@@ -269,19 +292,20 @@
      140cqh the photograph's own bottom edge lands inside the ball row and the
      ball stands on black.
 
-     Both terms had to come down when the camera was moved: this plate holds
-     the goal at .32 of its width where the last one held it at .24, so the
-     same zoom would have drawn a goal wider than a phone. Goal size on screen
-     is --plate-w times --g-w, and that is the number to check after a
-     re-shoot. */
-  --plate-w: max(120cqw, 143cqh);
+     Retuned for the head-on plate, which holds the goal at .35 of its width.
+     Goal size on screen is --plate-w times --g-w, and that is the number to
+     check after a re-shoot: 100cqw keeps a wide screen covered, and 158cqh
+     draws a goal about 300px across on a 390px phone — a little under four
+     fifths of the width, which leaves the posts clear of the edges and still
+     lets four targets sit inside the mouth. */
+  --plate-w: max(100cqw, 158cqh);
   --plate-h: calc(var(--plate-w) * 1522 / 1920);
 
   /* Where the goal line meets the grass, measured up from the bottom of the
      pitch. This is the anchor and the plate hangs off it: the goal is the one
      thing that has to stay on screen in the same place at every size, so it
      gets the fixed position and the photograph moves behind it. */
-  --goal-base: 38cqh;
+  --goal-base: 44cqh;
   --plate-b: calc(var(--goal-base) - var(--plate-h) * (1 - var(--g-base)));
 
   /* ── the dummy rack ───────────────────────────────────────── */
@@ -289,21 +313,29 @@
      js/game.js reads that back off the rendered element rather than being
      told — see rackDepth() there. Move these and the collision moves too.
 
-     These three are taken from the FIFA reference the owner supplied, measured
-     off it rather than judged: there the rack spans the goal's right 58% with
-     its right edge on the far post, stands 1.13 times the goal's height, and
-     its wheels sit about .78 of a goal height below the goal line.
+     The height and the standoff are measured off the FIFA reference the owner
+     supplied rather than judged: there the rack stands 1.17 times the goal's
+     height with its wheels about .78 of a goal height below the goal line.
 
      Its wheels sit below the goal line, so it is nearer the camera, and its
-     figures are taller than the goal for the same reason. All three are
-     fractions of the plate, so they scale with everything else. */
-  --rack-x: calc(var(--gl-x) + var(--g-w) * .71);  /* centre, across the plate */
-  --rack-foot: calc(var(--g-base) + .1796 * .78);  /* its wheels, down the plate */
-  /* .1796 is the goal's own mean height as a fraction of the plate. A rack at
-     more than about 1.2 of it swallows the mouth and takes two of the four
-     prizes with it, which is a target the visitor can neither see nor reach:
-     a wall has to be in the way without being all of the way. */
-  --rack-h: calc(var(--plate-h) * .1796 * 1.13);   /* the figures, not the canvas */
+     figures are taller than the goal for the same reason.
+
+     ONLY THE HEIGHT IS SET. The width is not a number anywhere — it falls out
+     of the height through the sprite's own aspect, and that is the trap this
+     scene has fallen into twice. Body width comes to 1.87 goal-heights, so as
+     a fraction of the mouth it is 1.87 divided by the mouth's aspect ratio: at
+     the reference's 3.66:1 that is the 51% the reference actually shows, at
+     this plate's 2.88:1 it is 65%, and on the 2.3:1 plate before it, 82% —
+     a wall wider than the goal, sitting on top of a prize. Check the rendered
+     width against the mouth after any re-shoot; if it is far from a half, the
+     plate is wrong and no amount of tuning here will fix it.
+
+     Centred on the mouth rather than off to one side, which was an artefact of
+     composing against an angled reference. Centred, the two target columns at
+     u .12 and .85 keep their middles clear of it. */
+  --rack-x: calc(var(--gl-x) + var(--g-w) * .5);   /* centre, across the plate */
+  --rack-foot: calc(var(--g-base) + var(--g-h) * .78);  /* wheels, down the plate */
+  --rack-h: calc(var(--plate-h) * var(--g-h) * 1.13);   /* figures, not canvas */
 }
 
 /* The stadium plate. */
@@ -373,13 +405,20 @@
   --tyb: calc(var(--gl-b) + (var(--gr-b) - var(--gl-b)) * var(--u));
   --ty:  calc(var(--tyt) + (var(--tyb) - var(--tyt)) * var(--v));
   /* One size for all four, a fraction of the goal's WIDTH — which is how the
-     reference sizes them, and it comes to about a seventh of the mouth.
+     reference sizes them, and .14 is what its 69px squares come to in a 505px
+     mouth.
 
-     Perspective scaling was tried, sizing each target off the goal's height
-     at its own place across the mouth. On a strongly angled plate that is the
-     right thing; on this one the two posts differ by a fifth, so it bought a
-     difference nobody could see and one more expression to read. */
-  --t: calc(var(--g-w) * var(--plate-w) * .18);
+     .14 rather than the .18 the angled build used, and it is a fit constraint
+     rather than taste. The mouth is 2.88:1, so its height is .347 of its
+     width, and two rows of targets have to live inside that: at .18 the pair
+     comes to .36 of the width and does not fit at all, at .14 it comes to .28
+     and leaves .067 to share between the crossbar, the middle and the line.
+
+     Perspective scaling was tried, sizing each target off the goal's height at
+     its own place across the mouth. That is the right thing on a strongly
+     angled plate; head-on the two posts are the same height and it would be
+     arithmetic that can only ever return the same answer twice. */
+  --t: calc(var(--g-w) * var(--plate-w) * .14);
 
   position: absolute;
   left: calc(50% + var(--plate-x) + var(--plate-w) * (var(--tx) - .5));
@@ -398,10 +437,14 @@
 
 /* All four placed here rather than inline in the markup, so the geometry is
    in one file with the six numbers it is derived from. */
-.target:nth-child(1) { --u: .12; --v: .27; }
-.target:nth-child(2) { --u: .85; --v: .30; }
-.target:nth-child(3) { --u: .12; --v: .80; }
-.target:nth-child(4) { --u: .85; --v: .82; }
+/* Two columns hugging the posts and two rows splitting the mouth. A target is
+   .403 of the mouth's height, so a row centred at .23 reaches from .03 to .43
+   and one at .77 from .57 to .97: clear of the crossbar, clear of the line,
+   and with a band of open net between them for a ball to pass through. */
+.target:nth-child(1) { --u: .12; --v: .23; }
+.target:nth-child(2) { --u: .85; --v: .23; }
+.target:nth-child(3) { --u: .12; --v: .77; }
+.target:nth-child(4) { --u: .85; --v: .77; }
 
 .target__card {
   position: absolute;
@@ -431,13 +474,18 @@
    cqmin resolves against .pitch and a "4%" border came out fifteen pixels
    thick on a seventy-pixel target — the four targets rendered as solid red
    blocks with a small cross in them. */
+/* Light, not the brand red. The rack these hang over is red, and red on red
+   read as one shape: of four prizes only three could be picked out, and the
+   fourth looked like part of the wall. The prize face below keeps the red —
+   it is only ever seen after the strike, on a target being looked straight
+   at, so it has no wall to compete with. */
 .target__front {
-  border: max(2px, calc(var(--t) * .07)) solid var(--accent);
+  border: max(2px, calc(var(--t) * .07)) solid rgba(242, 242, 244, .92);
   background:
     linear-gradient(var(--ink-000), var(--ink-000)) center / 46% max(2px, 8%) no-repeat,
     linear-gradient(var(--ink-000), var(--ink-000)) center / max(2px, 8%) 46% no-repeat,
     rgba(238, 239, 242, .16);
-  box-shadow: 0 0 0 1px rgba(4, 4, 5, .55), 0 0 18px rgba(210, 21, 2, .45);
+  box-shadow: 0 0 0 1px rgba(4, 4, 5, .55), 0 0 18px rgba(4, 4, 5, .55);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
 }
@@ -479,7 +527,7 @@
       linear-gradient(var(--ink-000), var(--ink-000)) center / 46% max(2px, 8%) no-repeat,
       linear-gradient(var(--ink-000), var(--ink-000)) center / max(2px, 8%) 46% no-repeat,
       rgba(238, 239, 242, .3);
-    box-shadow: 0 0 0 1px rgba(4, 4, 5, .55), 0 0 26px rgba(255, 69, 58, .85);
+    box-shadow: 0 0 0 1px rgba(4, 4, 5, .55), 0 0 26px rgba(255, 255, 255, .8);
   }
 }
 
@@ -819,13 +867,17 @@
    the goal at every size. It lives inside .pitch for exactly that reason —
    outside it, neither custom property exists.
 
-   Centred on the goal rather than on the pitch: the camera is off to one side,
-   so the middle of the frame is open grass and a caption there would sit
-   nowhere in particular. */
+   Centred on the goal rather than on the pitch. Head-on those are the same
+   point, but they were not on either angled plate, where the middle of the
+   frame was open grass and a caption there sat nowhere in particular. */
 .msg {
   position: absolute;
   z-index: 30;
-  left: calc(50% + var(--plate-w) * ((var(--gl-x) + var(--gr-x)) / 2 - .5));
+  /* Plate-anchored, so it carries --plate-x like the other four. It also uses
+     --g-cx rather than re-deriving the mouth's centre, which is what it did
+     before and is how it came to be the one anchored rule left behind when the
+     shift was introduced. */
+  left: calc(50% + var(--plate-x) + var(--plate-w) * (var(--g-cx) - .5));
   bottom: calc(var(--goal-base) - var(--plate-h) * .085);
   transform: translate(-50%, 0) scale(.9);
   max-width: min(88cqw, 520px);

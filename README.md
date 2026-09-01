@@ -95,24 +95,31 @@ The attempt counter lives in memory, so a reload restarts the sequence.
 ## The goal is a quadrilateral
 
 `assets/img/pitch-training.webp` is a training ground at dusk photographed
-from a free-kick position off to one side, so the goal on screen is **not a
-rectangle**. Both posts are vertical, but the nearer one is taller and their
-tops and bases do not line up.
+square on to the goal, at ball height, from about twenty metres out. The goal
+is a rectangle on screen — but it is still described as a quadrilateral, and
+that is deliberate.
 
 Six numbers describe it, and `python tools/cutout.py` prints all six off the
 file it has just written:
 
 ```
-left post   x .2620   top .1971   base .4020
-right post  x .5859   top .2391   base .3935      (fractions of the plate)
+left post   x .3198   top .2897   base .4428
+right post  x .6703   top .2890   base .4434      (fractions of the plate)
 ```
+
+The two posts agree to within .0007, which is what "head-on" means as a
+measurement rather than as an intention. Nothing downstream is told they agree:
+`js/aim.js` reads four corner markers and interpolates bilinearly inside
+whatever shape they describe, and a rectangle is just the case where the corners
+line up. Collapsing this to four numbers would buy nothing and would have to be
+undone the first time the camera moves again — which, on this project, it has
+done three times.
 
 **Left and right, not near and far.** Which post is nearer flips the moment the
 camera crosses the goal's axis, and naming them by depth would make every
 consumer of these numbers need to know which way round today's plate is — a
 rightward drag would be sent to the left of the goal, silently, on a plate that
-looked perfectly fine. The perspective is carried by each post having its own
-top and base, which works whichever side the taller one is on.
+looked perfectly fine.
 
 `css/game.css` places four zero-size markers on those corners; everything else
 — the four targets, the ball's ground line, the caption — is bilinear
@@ -121,19 +128,31 @@ repeating the arithmetic. Re-run the tool against a new plate and paste what it
 prints. It was checked by drawing the quad back over the photograph and
 confirming it lands on the painted frame.
 
-**How square-on the mouth reads is the thing to check after a re-shoot.** It
-comes out about 2.3:1 here, against the 3:1 of a real goal seen dead on, so the
-camera is only slightly off the axis. An earlier plate came back at 1:1 — the
-camera had been swung round some seventy degrees — and everything that hung off
-it inherited the error: the rack, sized from the goal's height, grew wider than
-the mouth it was supposed to stand in front of. One ratio, checked once, catches
-the whole class of mistake.
+### One ratio catches the whole class of mistake
 
-The goal is not in the middle of the photograph — it sits at .424 of its width.
-`--plate-x` slides the plate right by the difference so the mouth lands on the
-stage's centre line; without it a 390px phone put the left post 11px from the
-screen edge and both left-hand prizes half off it. Everything anchored to the
-plate carries that same shift, or it comes away from the photograph.
+**How square-on the mouth reads is the thing to check after a re-shoot.** A
+7.32 × 2.44 m goal is exactly 3:1 seen dead on from ball height. This plate
+measures 673 × 234 px — **2.88:1** — and that single number is the acceptance
+test for a render.
+
+It is worth being blunt about why, because two plates failed it. One came back
+at 1:1: the camera had been swung round some seventy degrees. Its replacement
+came back at 2.3:1. Neither failure stayed in the photograph. The rack's width
+is not set anywhere — it falls out of its height through the sprite's aspect —
+so the rack's share of the mouth is roughly 1.87 divided by the mouth's ratio:
+51% at 3.66:1, 65% here, and **82% at 2.3:1**, which is a wall wider than the
+goal, sitting on top of a prize the visitor can then neither see nor hit.
+
+So: measure the render, reject it if the mouth is wrong, and do not compensate
+in the CSS. The CSS is where the compensating was tried, and it is what turned
+one bad number into a hidden prize.
+
+`--plate-x` slides the plate sideways so the mouth lands on the stage's centre
+line. On this plate the goal sits at .4951 of the width and the shift is half a
+percent — invisible. It stays anyway: on the previous plate the goal sat at .424
+and hanging the photograph on the centre put the left post 11px from a 390px
+phone's edge with both left-hand prizes half off it. Everything anchored to the
+plate carries the same shift, or it comes away from the photograph.
 
 ## Reading a shot out of a drag
 
@@ -175,24 +194,29 @@ asks it; nothing keeps a second opinion.
 
 ## Where the rack stands
 
-Its three numbers are measured off the FIFA training-mode reference the owner
-supplied rather than judged by eye: there the rack spans the goal's right 58%
-with its right edge near the far post, stands 1.13 times the goal's height, and
-its wheels sit about .78 of a goal height below the goal line. `--rack-x`,
+Two numbers are measured off the FIFA training-mode reference the owner
+supplied rather than judged by eye: there the rack stands 1.17 times the goal's
+height, and its wheels sit about .78 of a goal height below the goal line.
 `--rack-h` and `--rack-foot` say exactly that, as fractions of the plate.
+`--rack-x` centres it on the mouth.
 
-It is still a composition choice rather than the photograph's own perspective,
-and it is worth being plain about that: placed truthfully, a wall standing the
+It is a composition choice rather than the photograph's own perspective, and it
+is worth being plain about that: placed truthfully, a wall standing the
 regulation 9.15 m from the ball would cover the goal almost completely, and
 there would be no game. The wheels sitting below the goal line are what make it
 nearer than the goal, and being nearer is what lets the figures stand taller
 than the mouth they cross.
 
-The height is the number to watch. `--rack-h` is a multiple of the goal's
-height, and the sprite's own aspect turns that into a width — so on a plate
-whose mouth reads squarer than the reference's, the same multiple produces a
-rack wider than the goal, and it takes two of the four prizes with it. A wall
-has to be in the way without being all of the way.
+**Only the height is set. The width is not a number anywhere** — it falls out of
+the height through the sprite's aspect, and that is the trap this scene fell
+into twice. Body width comes to 1.87 goal-heights, so its share of the mouth is
+1.87 divided by the mouth's ratio. Head-on at 2.88:1 that is 65%, which reads as
+a wall in the way without being all of the way; on the 2.3:1 plate before it, it
+was 82% and it sat on a prize.
+
+So the check after a re-shoot is not "does the rack look right" but the measured
+width of the rendered body against the measured width of the mouth. If it is far
+from a half, the plate is wrong and nothing in this file will fix it.
 
 Whatever those numbers are, the collision follows them: `js/game.js` reads the
 rack's depth off its own rendered feet rather than being told, so moving it in
@@ -209,6 +233,18 @@ translation, a focus ring, and a flip that is one transform — none of which a
 sprite gives. Each carries its place in the quad (`--u` across, `--v` down) and
 its own prize; the four placements live in the stylesheet beside the six
 numbers they are derived from.
+
+**The unstruck face is light, not brand red.** The rack they hang over is red,
+and red on red read as one shape: of four prizes only three could be picked out
+and the fourth looked like part of the wall. The prize face keeps the red — it
+is only ever seen after the strike, on a target being looked straight at, with
+no wall to compete with.
+
+Their size is a fit constraint, not taste. `--t` is .14 of the goal's width,
+which is what the reference's 69px squares come to in its 505px mouth, and it is
+also what two rows can be. The mouth is 2.88:1, so its height is .347 of its
+width; two rows at the .18 the angled build used would come to .36 and not fit
+inside the goal at all.
 
 The prizes are the two real offers on top-bet.com — a **200%** sport bonus on
 the first four deposits, and a welcome package plus **150 free spins** on
@@ -235,10 +271,13 @@ grass, blurs across the blades, darkens towards the bottom and crossfades the
 join.
 
 **Finding the goal is harder than it looks.** The posts are not the widest
-white thing in the frame — seen at an angle, the side and back netting reaches
-further across than either upright. What separates a post is that it is tall
-and continuous, so `find_goal_quad()` looks for the two columns carrying the
-longest vertical run of bright pixels. Three details make that work on a dusk
+white thing in the frame: seen at an angle the side and back netting reaches
+further across than either upright, and even head-on the netting is as bright as
+the frame. What separates a post is that it is tall and continuous, so
+`find_goal_quad()` looks for the two columns carrying the longest vertical run
+of bright pixels. The current plate is head-on and would forgive a cruder
+search, but the finder is kept as it is — it survived three cameras, and the
+cheapest of those failures still cost a render. Three details make that work on a dusk
 plate and each was arrived at by measuring what the search actually saw: the
 mask is widened sideways first, because a two-pixel anti-aliased post fills no
 single column; the run tolerates a few dark pixels, because netting crosses the

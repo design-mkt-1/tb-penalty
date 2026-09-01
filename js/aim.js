@@ -55,11 +55,16 @@
 
   /* ── the goal, as a quadrilateral ─────────────────────────── */
 
-  /* The camera is three-quarter, so the goal mouth is not a rectangle on
-     screen: both posts are vertical but the nearer one is taller, and their
-     tops and bases do not line up. css/game.css puts four zero-size markers on
-     its corners and this reads them back, so the geometry is stated once, in
-     the stylesheet, and measured here rather than repeated.
+  /* The goal mouth is read as four corners rather than as a box. On today's
+     head-on plate those four happen to form a rectangle, but the camera has
+     moved three times over this project and twice landed on a quadrilateral —
+     both posts vertical, the nearer one taller, tops and bases not lining up.
+     Bilinear interpolation inside four points handles both without knowing
+     which it has, so nothing here has to be told what the camera did.
+
+     css/game.css puts four zero-size markers on the corners and this reads them
+     back, so the geometry is stated once, in the stylesheet, and measured here
+     rather than repeated.
 
      Re-read on every drag rather than cached. A drag is a few dozen frames and
      four getBoundingClientRect calls are nothing beside them; a cache would

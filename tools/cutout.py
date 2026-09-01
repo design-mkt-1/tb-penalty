@@ -85,7 +85,7 @@ JOBS = {
 # needed and for the same reason.
 PLATES = {
     'pitch-training': ('_raw-pitch-training.png', 1920, 82, 0.42,
-                       (0.28, 0.62, 0.26, 0.62)),
+                       (0.40, 0.66, 0.28, 0.72)),
 }
 
 

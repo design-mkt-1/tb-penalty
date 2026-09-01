@@ -27,14 +27,18 @@
      they can never disagree: at t=1 the ball is exactly on the target at
      exactly S_END of its size, whatever else is retuned.
 
-     0.20. The penalty game this grew from used 0.30, the head-on free kick
-     0.22; the training-ground plate is shot from further out, so the ball has
-     to arrive smaller and the front loading is stronger with it -- the ball
-     leaves the boot fast and floats in at the end, which is what the long ones
-     look like. Retune this whenever the plate's camera moves: it is the
-     apparent size of the ball ON the goal, so it tracks how big the goal is in
-     the frame. */
-  var S_END = 0.20;                 // apparent size on the goal line
+     0.22. The penalty game this grew from used 0.30, from twelve yards; this
+     is a free kick from about twenty metres. It dropped to 0.16, then 0.20,
+     across two angled plates that drew the goal ever smaller in frame, and it
+     comes back here because the head-on plate draws it at 298px on a 390px
+     phone -- within two pixels of what the first head-on build had, which is
+     where 0.22 was arrived at.
+
+     Retune this whenever the plate's camera moves: it is the apparent size of
+     the ball ON the goal, so it tracks how big the goal is in the frame. The
+     check is not taste -- render the goal at a phone width, and if the goal's
+     on-screen width has moved much from 300px, this has to move with it. */
+  var S_END = 0.22;                 // apparent size on the goal line
   var Z_END = 1 / S_END;            // 4.545 -- depth there
 
   function depth(t)    { return 1 + (Z_END - 1) * t; }
@@ -150,13 +154,13 @@
               window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
-  /* Where the near post meets the grass, in stage pixels. The ball's shadow
+  /* Where the left post meets the grass, in stage pixels. The ball's shadow
      travels to here.
 
-     The left-base corner marker, not .goal's own bottom edge. The camera is
-     three-quarter now, so the goal mouth is a quadrilateral and .goal is only
-     the box the four corner markers hang in — its bottom edge is the bottom of
-     the pitch, which would run the shadow off the screen. */
+     The left-base corner marker, not .goal's own bottom edge. .goal draws
+     nothing — it is only the box the four corner markers hang in, and it is
+     inset to the whole pitch, so its bottom edge is the bottom of the pitch and
+     would run the shadow off the screen. */
   function goalLine() {
     if (!goalEl) return box().height;
     return goalEl.getBoundingClientRect().bottom - box().top;

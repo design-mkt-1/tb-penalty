@@ -21,13 +21,26 @@ keeper's ten poses were rendered facing the camera and could not survive the
 turn, so — with the owner's agreement — he is gone and the scene is target
 practice. `js/animator.js` went with him.
 
+**And then the camera came back in front.** Two renders were spent on the
+angled view and neither got close: put beside the reference at the same frame
+size, the goal measured 2.3:1 against its 3.7:1, the rack covered 82% of the
+mouth against its 53%, the ball sat at the rack's feet instead of a long stretch
+of grass away, and only three of the four prizes could be picked out. The owner
+called it — the angle was too hard to hit — and head-on removes the whole class
+of failure rather than patching it: a real goal is exactly 3:1 seen square on,
+so there is one number to check and it cannot be argued with.
+
+Nothing in the game changed for any of it. The geometry is six fractions and
+four corner markers, and `js/aim.js` interpolates inside whatever shape it
+reads, so three cameras have cost three plates and some numbers — no logic.
+
 ## What was measured, and what it is worth
 
 **The goal, as a quadrilateral.** Six numbers, and everything hangs off them:
 
 ```
-left post   x .2620   top .1971   base .4020
-right post  x .5859   top .2391   base .3935
+left post   x .3198   top .2897   base .4428
+right post  x .6703   top .2890   base .4434
 ```
 
 `python tools/cutout.py` prints these off the file it ships. They are NOT the
@@ -40,16 +53,25 @@ Named left and right, by screen x, and not near and far: which post is nearer
 flips when the camera crosses the goal's axis, and a depth name would silently
 invert the aim on a plate that looked fine.
 
+The two posts now agree to within .0007 — the plate is head-on. They are still
+six numbers rather than four, because `js/aim.js` interpolates inside whatever
+shape the four markers describe and a rectangle is simply the case where they
+line up. Collapsing them would have to be undone the next time the camera moves.
+
 **The dummy rack inside its own canvas.** x .1620–.8380, y .1654–.8962.
 `RACK_BODY` in `js/game.js`, also printed by the tool. The rest of the element
 is empty canvas and must not block a shot.
 
-**The mouth's aspect, which is the one ratio to check after a re-shoot.** It is
-about 2.3:1 here against the 3:1 of a real goal seen dead on, so the camera sits
-only slightly off the axis — the owner asked for "more central, only 5–10
-degrees to the right", and this is what that came to. The reference itself reads
-nearer 3.5:1, so this plate is still the squarer of the two, and that difference
-is why the rack comes out wide (see *Bugs and traps*).
+**The mouth's aspect, which is the one ratio to check after a re-shoot.**
+673 × 234 px — **2.88:1**, against the 3:1 of a real goal seen dead on from ball
+height. That is the acceptance test for a render, and it is the whole reason the
+camera came back in front: the two angled plates measured 1:1 and 2.3:1, and
+neither failure stayed in the photograph (see *Bugs and traps*).
+
+**What the rack's width came to.** 65% of the mouth, measured off the rendered
+element rather than assumed — against 82% on the plate before it, and the 51%
+the reference shows. This number is not set anywhere; it falls out of the
+aspect, which is why the aspect is the thing that gets checked.
 
 ## Decisions already taken
 
@@ -86,17 +108,29 @@ is why the rack comes out wide (see *Bugs and traps*).
   bug.
 * **The rack's width is not set anywhere — it falls out of its height.**
   `--rack-h` is a multiple of the goal's height and the sprite's aspect turns
-  that into a width, so a plate whose mouth reads squarer than the reference's
-  produces a rack wider than the goal itself. At 1.13 goal-heights on this plate
-  the rack comes to about 120% of the mouth's width where the reference has it
-  at 58%, and it covers the lower-right prize. If a re-shoot brings the mouth
-  nearer 3:1 this resolves itself; until then it is the known cosmetic gap.
-* **The goal is not in the middle of the plate.** It sits at .424 of its width,
-  so hanging the plate on the stage's centre line hangs the goal left of it — on
-  a 390px phone that put the left post 11px from the edge with both left-hand
-  prizes half off screen. `--plate-x` corrects it, and *every* plate-anchored
-  rule has to add it: `.pitch::before`, `.goal__c`, `.target`, `.dummies-zone`.
-  Miss one and that element slides off the photograph.
+  that into a width, so the rack's share of the mouth is about 1.87 divided by
+  the mouth's ratio: 65% head-on, 82% on the 2.3:1 plate, where it covered a
+  prize outright. This is the single mechanism that turned a bad camera into an
+  unwinnable target, and it is why the plate is measured before anything else.
+* **Three cameras, and the same lesson each time.** Head-on was where this
+  started; it was moved to a three-quarter view to match a FIFA reference, came
+  back at 1:1, was re-shot at 2.3:1, and has now come back to head-on. Compare
+  a render against the reference *at the same frame size and in numbers* before
+  building on it — the two angled plates both looked plausible in isolation and
+  neither survived being measured.
+* **The goal need not be in the middle of the plate.** On the current head-on
+  render it is, at .4951, so `--plate-x` computes to half a percent and does
+  nothing. On the plate before it the goal sat at .424, and hanging the
+  photograph on the stage's centre line put the left post 11px from a 390px
+  phone's edge with both left-hand prizes half off screen. Do not delete
+  `--plate-x` because today's render does not need it, and remember that *every*
+  plate-anchored rule has to add it. There are five: `.pitch::before`,
+  `.goal__c`, `.target`, `.dummies-zone` and `.msg`. Miss one and that element
+  slides off the photograph — `.msg` was in fact missed when the shift was first
+  added, and went unnoticed only because the next plate happened to be centred.
+* **Target size is a fit constraint, not taste.** `--t` is .14 of the goal's
+  width. Two rows have to live inside a mouth whose height is .347 of its width;
+  at the .18 the angled build used they come to .36 and do not fit at all.
 * **`pickBonus()` used to steal focus unconditionally.** Now that the game
   calls it before the card is shown, an unguarded `focus()` moves focus into a
   hidden dialog. It only acts if the menu was actually open — the same guard
@@ -121,6 +155,15 @@ one a second, so a 700 ms flight takes the better part of a minute. Anything
 that `await`s a flight inside a single evaluate will time out and look exactly
 like a frozen renderer. Arm a watcher, return immediately, and poll.
 
+A second one, and it produced a convincing false bug twice: **if the globals you
+set up come back `undefined`, the evaluate is not looking at the page you
+instrumented.** Both times it read a state that seemed to say a click on one
+target had knocked over another — a real bug, if it had been real. Re-arm and
+re-run instead of trusting that reading. The way to settle it for good is ground
+truth rather than inference: a capturing `click` listener on each target plus a
+`MutationObserver` on `data-spent`, which prints the click-to-spend mapping and
+the attempt number with it, and showed the game behaving correctly all along.
+
 * Attempt one stops **inside** the rack's box at the rack's depth — for a drag
   bowed left, bowed right and dead straight, and for a shot fired at each of
   the four targets.
@@ -139,24 +182,17 @@ like a frozen renderer. Arm a watcher, return immediately, and poll.
 
 ## What is next
 
-1. **Decide about the rack covering the lower-right prize.** All four targets
-   are on screen and reachable, but on a phone the rack's figures cross the
-   right-hand pair and the lower one is only half readable behind two heads.
-   Two ways out, and it is a judgement call, not a bug to grind at: re-render
-   the plate with the mouth nearer the reference's 3.5:1, which fixes it
-   arithmetically, or drop `--rack-h` below about 0.9 goal-heights and accept
-   figures that read slightly shorter than the reference's.
-2. **Fill the URLs.** Five one-line changes, listed in the README's *Known
+1. **Fill the URLs.** Five one-line changes, listed in the README's *Known
    gaps*. Nothing else has to move.
-3. **Have the UZ and RU strings reviewed.** They shipped unreviewed.
-4. **Settle the market.** The picker defaults to `+998` while the live site
+2. **Have the UZ and RU strings reviewed.** They shipped unreviewed.
+3. **Settle the market.** The picker defaults to `+998` while the live site
    quotes RON, EUR and USD. `COUNTRIES` at the top of `js/form.js`.
-5. **Get the offer amount** and replace `(AMOUNT)` in `js/i18n.js` — or confirm
+4. **Get the offer amount** and replace `(AMOUNT)` in `js/i18n.js` — or confirm
    it should stay a placeholder, which is the honest answer if the page runs in
    more than one currency.
-6. **Decide whether the form should submit.** `SUBMIT` in `js/form.js` takes
+5. **Decide whether the form should submit.** `SUBMIT` in `js/form.js` takes
    the contact, the tab it came from, the bonus and the locale.
-7. **Look at it on a real phone.** The soft-keyboard path — the card scrolling
+6. **Look at it on a real phone.** The soft-keyboard path — the card scrolling
    inside itself while the page does not — is the one thing a desktop browser
    cannot honestly test.
 
