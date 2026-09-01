@@ -1,39 +1,36 @@
-"""Turn the raw Nano Banana Pro renders into game-ready sprites.
+"""Turn the raw Nano Banana Pro renders into game-ready sprites, and measure
+the pitch plate the rest of the page is hung off.
 
-Each raw character render sits on a flat mid-grey backdrop. This script keys
-that backdrop out, drops isolated artefacts the model hallucinated (a stray
-boot, a stray ball), normalises the figure's scale, plants it on a common
-ground line, downscales and writes WebP.
+The one character render — the dummy rack — sits on a flat mid-grey backdrop.
+This script keys that backdrop out, drops isolated artefacts the model
+hallucinated, trims nothing, downscales and writes WebP.
 
-Two keying strategies, because the sources differ:
+Two keying strategies, because sources differ:
 
 * grey  — the backdrop is achromatic and mid-bright, while the subject is
-          either saturated (the red kit, the gloves) or much brighter (white
-          boots). The backdrop predicate is flood-filled in from the frame
-          edge, so achromatic parts *inside* the subject (black shorts, black
-          socks, black boots) survive.
+          saturated (the red plastic) or much brighter. The backdrop predicate
+          is flood-filled in from the frame edge, so achromatic parts *inside*
+          the subject (the black castors) survive.
 * rgba  — the source already carries its alpha and only needs resizing.
 
-Why the normalise pass exists
------------------------------
-fs-penalty could export its keeper poses straight off the render because every
-pose came out of one camera at one scale. These do not: asking an image model
-for "the same goalkeeper, same scale, different pose" gets the character and
-the kit right and the scale wrong by up to a fifth. A sprite that changes size
-when it swaps is the single loudest tell that this is a slideshow rather than
-an animation, so the size is taken away from the model and computed here.
+It also does two things to the plate, and both matter more than the keying:
 
-The invariant is the silhouette's *area*. A full-body figure covers roughly the
-same number of pixels whether it is standing or diving — far more stable than
-bounding-box height, which a dive turns on its side, or width, which arms
-open and close. Scale is then sqrt(reference area / this area), because area
-goes as the square of height.
+**It lengthens the foreground.** The photograph is 16:9 and a phone is not, so
+pinning the goal where the composition wants it leaves the image's own bottom
+edge well above the ball. `lengthen()` stretches the last rows into more grass,
+blurs across the blades, darkens towards the bottom and crossfades the join.
 
-The anchor is the bottom of the subject's bounding box, laid on one ground
-line for every pose. A dive's lowest point is its trailing boot rather than a
-planted foot, so a high dive comes out standing on the grass — that is what
-POSES[..].y in js/animator.js is for, and it is the one seam where a pose is
-allowed an exception. Nothing here guesses at it.
+**It measures the goal.** The camera is three-quarter, so the goal is not a
+rectangle on screen — it is a quadrilateral, and `find_goal_quad()` finds its
+four corners on the file that actually ships. css/game.css hangs the targets,
+the ball's ground line and the caption off those four points. They are printed
+by this script rather than typed in by hand off a different version of the
+image.
+
+An earlier version of this tool also normalised a goalkeeper's ten poses to one
+scale, measured off the width of his head. He is gone — the scene is target
+practice now — and so is that machinery. It is in the history if a second
+character pose ever comes back.
 
 Usage:
     python tools/cutout.py
@@ -52,76 +49,20 @@ RAW = os.path.join(ROOT, 'raw')
 
 QUALITY = {}
 
-# Character sprites are exported on the FULL uncropped canvas. Every raw render
-# shares one frame, so keeping the canvas keeps every pose in one coordinate
-# space: swapping the sprite cannot make the character jump in position.
-# Trimming each pose to its own bounding box would destroy that, because a
-# sprawling low dive and an upright idle have wildly different boxes.
+# The sprite is exported on the FULL uncropped canvas rather than trimmed to
+# its own bounding box. css/game.css then places it by a fraction of that
+# canvas and js/game.js tests the trajectory against the same fractions, so the
+# two agree without either of them knowing how much empty margin the model left
+# around the object.
 #
-# name -> (source, key mode, keep-largest-blob, normalise group, target height)
+# name -> (source, key mode, keep-largest-blob, target height)
 #
-# The normalise group names which figures are measured against each other. The
-# keeper is one group and the wall another: they are different subjects at
-# different distances and there is nothing to gain by making them agree.
+# keep_largest is off: the rack is five figures bolted to a frame, and while
+# they are one connected blob today, a castor photographed clear of the frame
+# would not be — and losing a wheel to a tidy-up is a worse failure than
+# keeping a speck.
 JOBS = {
-    'keeper-ready':            ('_raw-keeper-ready.png',            'grey', True, 'keeper', 640),
-    'keeper-idle':             ('_raw-keeper-idle.png',             'grey', True, 'keeper', 640),
-    'keeper-jump_L1':          ('_raw-keeper-jump_L1.png',          'grey', True, 'keeper', 640),
-    'keeper-jump_R2':          ('_raw-keeper-jump_R2.png',          'grey', True, 'keeper', 640),
-    'keeper-jump_center':      ('_raw-keeper-jump_center.png',      'grey', True, 'keeper', 640),
-    'keeper-jump_center_down': ('_raw-keeper-jump_center_down.png', 'grey', True, 'keeper', 640),
-    'keeper-cheer':            ('_raw-keeper-cheer.png',            'grey', True, 'keeper', 640),
-    'keeper-beaten':           ('_raw-keeper-beaten.png',           'grey', True, 'keeper', 640),
-
-    # The wall is four figures, so keep_largest would throw three of them away.
-    'wall-idle':               ('_raw-wall-idle.png',               'grey', False, 'wall', 460),
-    'wall-jump':               ('_raw-wall-jump.png',               'grey', False, 'wall', 460),
-}
-
-# The pose each group is measured against, and what it is measured by.
-#
-#   face  the width of the exposed-skin region. The goalkeeper wears gloves,
-#         so the only skin in any of his poses is his head, and a head's width
-#         on the sensor depends on nothing but how far away the model drew
-#         him. This is the invariant that works.
-#   area  the silhouette's pixel count, scale = sqrt(ratio). The fallback, and
-#         all the wall can use: four heads are not one blob, and picking one of
-#         them out is more machinery than a two-pose group is worth.
-#
-# Area was the first thing tried on the keeper and it is worth saying why it
-# failed, because it sounds reasonable: a sprawling full-stretch dive covers
-# far more pixels than the same man standing, so the invariant read the dive as
-# "closer" and shrank it, while jump_center — arms straight up, a thin vertical
-# silhouette — read as "further" and was blown up 40% until his gloves left the
-# top of the canvas. Measured against the head, jump_L1 turned out to be drawn
-# nearly twice the size of jump_center. The area figure was not noisy; it was
-# measuring the pose.
-REFERENCE = {
-    'keeper': ('keeper-ready', 'face'),
-    'wall':   ('wall-idle',    'area'),
-}
-
-# Per-pose correction on top of the measured invariant, for the poses the
-# invariant cannot read straight. Kept explicit and tiny: if this table starts
-# growing, the renders are the problem, not the maths.
-#
-# jump_center_down is a keeper scooping a ball off the turf with his head down
-# and turned away, so the camera sees his head at an angle and reads it 40%
-# narrower than it is. Everything else here faces forward within a few degrees
-# and lands inside the ±8% that head rotation costs anyway.
-#
-# 1.67 is 40/24: the head width the other seven poses converge on, over the
-# width this one measured before the correction.
-ADJUST = {
-    'keeper-jump_center_down': 1.67,
-}
-
-# Sprites produced by mirroring another sprite rather than by generation.
-# The kit carries no asymmetric mark, so the flip is invisible.
-# L and R are from the VIEWER's point of view.
-MIRRORS = {
-    'keeper-jump_L2': 'keeper-jump_R2',
-    'keeper-jump_R1': 'keeper-jump_L1',
+    'dummies': ('_raw-dummies.png', 'grey', False, 520),
 }
 
 # The pitch plate keeps its background; it needs resizing and a longer
@@ -130,7 +71,11 @@ MIRRORS = {
 # land — which this script measures and prints, so the numbers in the CSS come
 # out of the same run that makes the image.
 #
-# name -> (source, output width, quality, how much foreground to add)
+# name -> (source, output width, quality, foreground to add, goal search band)
+#
+# The band is (y0, y1, x0, x1) as fractions of the resized image, and it is
+# where the goal is in this particular photograph — see find_goal_quad() for
+# why an unbounded search cannot work.
 #
 # The added foreground is the reason the last field is not zero. The plate is
 # 16:9 and a phone is not: pinning the painted goal where the composition wants
@@ -139,7 +84,8 @@ MIRRORS = {
 # into more of it convincingly — this is the same trick fs-penalty's plate
 # needed and for the same reason.
 PLATES = {
-    'pitch-freekick': ('_raw-pitch-freekick.png', 1920, 82, 0.55),
+    'pitch-training': ('_raw-pitch-training.png', 1920, 82, 0.42,
+                       (0.25, 0.78, 0.28, 0.59)),
 }
 
 
@@ -154,19 +100,17 @@ def grey_background(rgb):
     """Flood the achromatic backdrop in from the frame edge, then take the
     holes the flood could not reach.
 
-    The flood alone is not enough here and it was not a safe assumption on
-    fs-penalty either — it only happened not to bite, because that keeper
-    stood with his arms away from his body in every pose. This one hangs his
-    arms by his sides in `idle` and rests his hands on his hips in `beaten`,
-    which encloses a wedge of backdrop between the arm and the torso. The edge
-    flood cannot reach an enclosed wedge, so it survived as a light grey patch
-    stamped on the middle of the sprite.
+    The flood alone is not enough: anything with a limb near its body encloses
+    a wedge of backdrop the flood cannot reach from the frame edge, and that
+    wedge then survives as a light grey patch stamped on the middle of the
+    sprite. The dummy rack is full of them — between each figure's folded arms
+    and its chest, and inside every triangle of the frame.
 
     Deleting every candidate pixel instead of flooding would fix that and take
-    the black shorts with it, which is the bug the flood exists to prevent. So
-    the enclosed regions are recovered separately, and only those whose mean
-    luma actually matches the backdrop are dropped. The kit is charcoal at
-    luma ~60 against a backdrop at ~170: the test is not close."""
+    any dark achromatic part of the subject with it, which is the bug the flood
+    exists to prevent. So the enclosed regions are recovered separately, and
+    only those whose mean luma actually matches the backdrop are dropped. A
+    black castor sits at luma ~40 against a backdrop at ~170: not close."""
     a = rgb.astype(np.int16)
     chroma = a.max(axis=2) - a.min(axis=2)
     luma = a.mean(axis=2)
@@ -193,22 +137,31 @@ def grey_background(rgb):
     if not bg.any():
         return bg
 
-    reference = float(luma[bg].mean())
-    holes = candidate & ~bg
+    # The holes get their own predicate rather than reusing `candidate`, and a
+    # floor rather than a match against the backdrop's mean brightness.
+    #
+    # An enclosed wedge is backdrop in shadow: the deeper it is buried between
+    # a limb and a frame the darker it reads, and the two that survived on the
+    # dummy rack came in at luma 127 and 133 against a backdrop averaging 170.
+    # A "within 14 of the mean" test rejects those, and widening it far enough
+    # to accept them would start accepting parts of the subject. A floor works
+    # instead because of what the subject is made of: the plastic is saturated
+    # and fails the chroma test outright, and the castors are black at luma ~40
+    # — nowhere near 90. Anything achromatic, enclosed, and brighter than that
+    # floor is backdrop.
+    holes = (chroma <= chroma_limit) & (luma >= 90) & ~bg
 
-    # Erode before looking for the wedges. components() finds regions in raster
-    # order and stops after `limit` of them, and the unflooded set is mostly
-    # one- and two-pixel fringe specks strung along the whole silhouette edge —
-    # thousands of them, every one discovered before the loop ever reaches an
-    # arm. Two pixels of erosion deletes the specks outright and leaves the
-    # wedges, which are tens of thousands of pixels each; the accepted core is
-    # then grown back and intersected with the holes to recover its true edge.
+    # Erode before looking for them. components() finds regions in raster order
+    # and stops after `limit` of them, and the unflooded set is mostly one- and
+    # two-pixel fringe specks strung along the whole silhouette edge — thousands
+    # of them, every one discovered before the loop reaches a real wedge. Two
+    # pixels of erosion deletes the specks and leaves the wedges; the accepted
+    # core is then grown back and intersected with the holes to recover its
+    # true edge.
     for blob in components(shrink(holes, 2)):
-        if blob.sum() < 200:
+        if blob.sum() < 40:
             continue
-        patch = grow(blob, 4) & holes
-        if abs(float(luma[patch].mean()) - reference) <= 14:
-            bg |= patch
+        bg |= grow(blob, 4) & holes
 
     return bg
 
@@ -261,33 +214,6 @@ def largest_blob(fg):
     return blobs[0] if blobs else fg
 
 
-def face(img):
-    """Width of the largest exposed-skin region, in pixels, or 0 if none.
-
-    The goalkeeper wears gloves, so the only skin anywhere in his poses is his
-    head. Its width therefore varies with one thing — how far away the model
-    drew him — which is exactly the thing this pipeline has to take back off
-    the renders. Head yaw narrows it, so a pose with the head turned away needs
-    an entry in ADJUST; nothing else does."""
-    a = np.asarray(img)
-    rgb = a[..., :3].astype(np.int16)
-    solid = a[..., 3] > 8
-    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    skin = solid & (r > g) & (g > b) & (r - b > 22) & (r - b < 105) & (r > 70) & (r < 245)
-
-    # Erode first. components() discovers regions in raster order and stops
-    # after `limit` of them, so without this the specks of skin-coloured
-    # fringing along the top of the sprite use up every slot and the face —
-    # lower down the frame — is never reached at all. That is what made this
-    # report 1px on jump_R2 and 8px on ready while getting idle right.
-    skin = shrink(skin, 2)
-    blobs = components(skin, limit=8)
-    if not blobs:
-        return 0
-    ys, xs = np.where(blobs[0])
-    return int(xs.max() - xs.min() + 1)
-
-
 def key(source, mode, keep_largest):
     """Read a raw render and return it as RGBA with the backdrop removed."""
     src = Image.open(os.path.join(RAW, source))
@@ -300,11 +226,11 @@ def key(source, mode, keep_largest):
     fg = ~bg
 
     if keep_largest:
-        # White boots are ringed by neutral pixels, and the flood eats through
-        # that ring far enough to sever a boot from its sock — the boot then
-        # looks like a stray artefact and gets dropped. Find the blob on a
-        # slightly grown foreground so those bridges survive, then intersect
-        # back with the tight mask to keep the edge crisp.
+        # A thin bright feature ringed by neutral pixels can be severed from
+        # the body by the flood eating through that ring, and then looks like a
+        # stray artefact and gets dropped. Find the blob on a slightly grown
+        # foreground so those bridges survive, then intersect back with the
+        # tight mask to keep the edge crisp.
         loose = ~shrink(bg, 3)
         fg = largest_blob(loose) & fg
 
@@ -314,49 +240,6 @@ def key(source, mode, keep_largest):
 
     out = Image.fromarray(rgb).convert('RGBA')
     out.putalpha(alpha)
-    return out
-
-
-def measure(img):
-    """Silhouette area, bounding box and head width of a keyed render."""
-    alpha = np.asarray(img)[..., 3] > 8
-    return int(alpha.sum()), img.getbbox(), face(img)
-
-
-def normalise(img, scale, ground):
-    """Resize the subject by `scale` and plant its bounding-box bottom on
-    `ground`, keeping the canvas and the subject's horizontal centre.
-
-    The whole canvas is scaled rather than a crop of the subject, so a pose
-    that the model drew off to one side stays off to that side — the character
-    is meant to move across the goal, and throwing that away would centre every
-    dive on the spot the keeper started from."""
-    w, h = img.size
-    if abs(scale - 1.0) > 1e-3:
-        big = img.resize((max(1, round(w * scale)), max(1, round(h * scale))),
-                         Image.LANCZOS)
-    else:
-        big = img
-
-    box = big.getbbox()
-    if not box:
-        return img
-
-    # Where the subject wants to be, and where it is.
-    dx = (w - big.width) // 2
-    dy = ground - box[3]
-
-    # Never let the anchor push the figure off its own canvas. jump_center is
-    # a keeper who has left the ground, so his lowest point is a boot in
-    # mid-air; planting that boot on the grass lifted his raised gloves clean
-    # out of the frame. Placement is recoverable later — POSES[..].y in
-    # js/animator.js exists for exactly that — but a sprite cropped by its own
-    # canvas is gone for good and looks like a rendering bug for the rest of
-    # the project's life.
-    dy = max(-box[1], min(dy, h - 1 - box[3]))
-
-    out = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-    out.paste(big, (dx, dy), big)
     return out
 
 
@@ -423,146 +306,144 @@ def lengthen(img, extend):
     return out
 
 
-def find_goal(img):
-    """Locate the painted goal and return it as fractions of the plate.
+def find_goal_quad(img, band):
+    """Locate the painted goal and return its four corners as fractions.
 
-    css/game.css hangs the goal box, the keeper, the wall and the caption off
-    these four numbers, so they are measured here — on the file that actually
-    ships, after the resize and the added foreground — rather than typed in by
-    hand off a different version of the image.
+    `band` is (y0, y1, x0, x1) as fractions of the image: where to look. It is
+    not tuning — it is the answer to a real ambiguity. A floodlight pylon is
+    also a tall solid vertical bright thing, and on this plate it is three
+    times the height of a goalpost, so an unbounded search returns a pylon
+    every time. The band says "the goal is in this part of the picture", which
+    is a fact about the photograph, and the four numbers that come out are then
+    measured rather than assumed.
 
-    The frame is the brightest near-white structure in the middle of the
-    picture. The net is white too but far dimmer, and the floodlights are
-    brighter still but live in the top corners, outside the band searched."""
+    The camera is three-quarter, so the goal is not a rectangle on screen. Its
+    mouth is a quadrilateral: the two posts are still vertical, but one is
+    nearer than the other, so they differ in height and their tops and bases
+    do not line up. css/game.css hangs the targets, the ball's ground line and
+    the caption off these four points.
+
+    Finding them by the extremes of the bright pixels does not work here and it
+    is worth saying why. Seen at an angle, the goal's widest white thing is not
+    a post — it is the side and back netting running away behind the near post,
+    which reaches further across the frame than either upright. An extremes
+    finder locks onto that and reports a goal half again as wide as it is.
+
+    What separates a post from netting is that a post is TALL and continuous.
+    So the search is for the two columns carrying the longest vertical run of
+    bright pixels: netting is a mesh, the crossbar is horizontal and
+    contributes almost nothing vertically, and the second post is taken outside
+    a window around the first so one upright cannot be found twice.
+
+    Two details are what make it work on a dusk plate rather than a daylight
+    one, and both were arrived at by measuring what the search actually saw:
+
+    * The mask is widened sideways first. A post is two or three pixels across
+      at this size and anti-aliased, so no single column is solidly bright and
+      an exact-column scan finds nothing at all — the longest run in the whole
+      goal came back as eight pixels.
+    * The run tolerates a few dark pixels inside it. A real post has netting
+      crossing it and floodlight falling unevenly down it; requiring an
+      unbroken run measures the lighting, not the post."""
     a = np.asarray(img).astype(int)
     h, w = a.shape[:2]
     luma = a.mean(axis=2)
     chroma = a.max(axis=2) - a.min(axis=2)
 
-    band = np.zeros_like(luma, bool)
-    band[int(h * 0.12):int(h * 0.62), int(w * 0.20):int(w * 0.80)] = True
-    bright = band & (luma > 175) & (chroma < 34)
+    y0, y1, x0, x1 = (int(h * band[0]), int(h * band[1]),
+                      int(w * band[2]), int(w * band[3]))
+    window = np.zeros_like(luma, bool)
+    window[y0:y1, x0:x1] = True
+    bright = window & (luma > 100) & (chroma < 60)
     if not bright.any():
         return None
+    bright = grow(bright, 2) & window
 
-    # The crossbar is the row carrying the widest run of it.
-    bar = int(np.argmax(bright.sum(axis=1)))
-    strip = bright[max(0, bar - 4):bar + 5]
-    xs = np.where(strip.any(axis=0))[0]
-    if not xs.size:
-        return None
-    left, right = int(xs.min()), int(xs.max())
+    gap_allowed = 3
 
-    def foot(x):
-        """Walk DOWN a post from the crossbar to the first sustained gap.
-
-        Taking the lowest bright pixel in the column instead finds the painted
-        penalty-area line on the grass a couple of hundred pixels below the
-        net, and reports the goal as half again as tall as it is."""
-        col = bright[:, max(0, x - 3):x + 4].any(axis=1)
+    def longest(col):
+        """Longest run down one column, tolerating `gap_allowed` dark pixels."""
+        best = best_s = best_e = 0
+        start = last = None
         gap = 0
-        for y in range(bar + 6, h):
+        for y in range(y0, y1):
             if col[y]:
+                if start is None:
+                    start = y
+                last = y
                 gap = 0
-            else:
+            elif start is not None:
                 gap += 1
-                if gap >= 12:
-                    return y - gap
-        return h - 1
+                if gap > gap_allowed:
+                    if last - start + 1 > best:
+                        best, best_s, best_e = last - start + 1, start, last
+                    start = None
+                    gap = 0
+        if start is not None and last - start + 1 > best:
+            best, best_s, best_e = last - start + 1, start, last
+        return best, best_s, best_e
 
-    base = max(foot(left + 4), foot(right - 4))
+    runs = np.zeros(w, int)
+    tops = np.zeros(w, int)
+    bases = np.zeros(w, int)
+    for x in range(x0, x1):
+        runs[x], tops[x], bases[x] = longest(bright[:, x])
+
+    first = int(np.argmax(runs))
+    if runs[first] < 20:
+        return None
+
+    # The second post is the FURTHEST strong column from the first, not the
+    # strongest one left.
+    #
+    # Strongest was tried and it does not work: the netting hangs in bright
+    # vertical folds, and grown and gap-tolerant a fold can out-run a real
+    # upright. Taking the strongest put the far post a quarter of the way
+    # across the mouth and reported a goal half its true width. Distance is the
+    # discriminator that survives, because the two things being looked for are
+    # by construction at the two ends of a band drawn around the goal — and a
+    # fold is always somewhere between them.
+    #
+    # "Strong" is measured against the first post rather than as an absolute:
+    # the far post is shorter, being further away, but not by half.
+    masked = runs.copy()
+    guard = max(8, (x1 - x0) // 8)
+    masked[max(0, first - guard):first + guard + 1] = 0
+    ok = np.where(masked >= runs[first] * 0.55)[0]
+    if not ok.size:
+        return None
+    second = int(ok[np.argmax(np.abs(ok - first))])
+
+    # The taller post is the nearer one: both are 2.44 m, so the one that
+    # subtends more of the frame is the one closer to the camera.
+    a_post = (first, tops[first], bases[first])
+    b_post = (second, tops[second], bases[second])
+    near, far = (a_post, b_post) if runs[first] >= runs[second] else (b_post, a_post)
+
     return {
-        'left':   left / w,
-        'right':  right / w,
-        'top':    bar / h,
-        'base':   base / h,
-        'w':      (right - left) / w,
-        'h_of_w': (base - bar) / w,
+        'near': (near[0] / w, near[1] / h, near[2] / h),
+        'far':  (far[0] / w, far[1] / h, far[2] / h),
     }
 
 
 def main():
-    # ── key everything first, so a group can be measured before it is written
-    keyed = {}
-    for name, (source, mode, keep, group, height) in JOBS.items():
+    for name, (source, mode, keep, height) in JOBS.items():
         path = os.path.join(RAW, source)
         if not os.path.exists(path):
             print('skip (missing source):', name)
             continue
-        keyed[name] = key(source, mode, keep)
-
-    stats = {n: measure(im) for n, im in keyed.items()}
-
-    # Scale every pose against its group's reference, then divide the whole
-    # group through by its own largest factor so the biggest pose comes out at
-    # 1.0 and nothing is ever enlarged.
-    #
-    # This is not tidiness. These renders put the figure within a few percent
-    # of the full frame height, so a pose scaled up by the 40% the area
-    # invariant asked for on jump_center pushed his raised gloves clean off the
-    # top of the canvas — and a sprite cropped by its own frame is a defect
-    # that survives every later stage silently. Normalising downwards cannot
-    # crop anything, and costs only resampling.
-    factor = {}
-    for name in keyed:
-        group = JOBS[name][3]
-        ref, how = REFERENCE.get(group, (None, 'area'))
-        area, _, head = stats[name]
-        raw = 1.0
-        if ref in stats:
-            ref_area, _, ref_head = stats[ref]
-            if how == 'face' and head and ref_head:
-                raw = ref_head / head
-            elif area:
-                raw = (ref_area / area) ** 0.5
-        factor[name] = raw * ADJUST.get(name, 1.0)
-
-    ceiling = {}
-    for name in keyed:
-        group = JOBS[name][3]
-        ceiling[group] = max(ceiling.get(group, 0), factor[name])
-
-    made = {}
-    for name, (source, mode, keep, group, height) in JOBS.items():
-        if name not in keyed:
-            continue
-        scale = factor[name] / ceiling[group]
-
-        # The ground line comes from the reference pose after its own scaling,
-        # so every figure in the group stands on one line whatever the group
-        # was divided through by.
-        ref, how = REFERENCE.get(group, (None, 'area'))
-        if ref in stats:
-            ref_box = stats[ref][1]
-            centre = keyed[ref].size[1] / 2
-            ground = round(centre + (ref_box[3] - centre) * factor[ref] / ceiling[group])
-        else:
-            ground = stats[name][1][3]
-
-        img = normalise(keyed[name], scale, ground)
+        img = key(source, mode, keep)
         dst, img = save(name, img, height)
-        made[name] = dst
 
-        after_area, after_box, after_face = measure(img)
-        # Only meaningful where the group is normalised by it: for the wall the
-        # largest skin blob is whichever two faces happened to touch.
-        head = ('%3dpx' % after_face) if how == 'face' else '   --'
-        print('%-24s %sx%-5s x%.3f  face %s  y %s-%s x %s-%s  %5.0f KB'
-              % (name, img.width, img.height, scale, head,
-                 after_box[1], after_box[3], after_box[0], after_box[2],
+        box = img.getbbox()
+        w, h = img.size
+        print('%-16s %sx%-5s  object y %.4f-%.4f  x %.4f-%.4f  %5.0f KB'
+              % (name, w, h, box[1] / h, box[3] / h, box[0] / w, box[2] / w,
                  os.path.getsize(dst) / 1024))
+        print('      those four fractions are DUMMY_BODY in js/game.js: the '
+              'object inside its own canvas.')
 
-    for name, base in MIRRORS.items():
-        if base not in made:
-            print('skip (missing base):', name)
-            continue
-        img = Image.open(made[base]).transpose(Image.FLIP_LEFT_RIGHT)
-        dst = os.path.join(IMG, name + '.webp')
-        img.save(dst, 'WEBP', quality=90, method=6)
-        print('%-24s mirrored from %-22s %5.0f KB'
-              % (name, base, os.path.getsize(dst) / 1024))
-
-    for name, (source, width, quality, extend) in PLATES.items():
+    for name, (source, width, quality, extend, band) in PLATES.items():
         path = os.path.join(RAW, source)
         if not os.path.exists(path):
             print('skip (missing source):', name)
@@ -570,28 +451,27 @@ def main():
         img = Image.open(path).convert('RGB')
         img = img.resize((width, round(img.height * width / img.width)), Image.LANCZOS)
 
-        # Measured before the foreground is added; see the note below.
-        goal = find_goal(img)
+        # Measured before the foreground is added, so the band above is a band
+        # of the photograph rather than of the photograph plus the invented
+        # grass under it.
+        goal = find_goal_quad(img, band)
         if extend:
             img = lengthen(img, extend)
-            if goal:
+            if goal and goal is not None:
                 # Everything is appended below the goal, so only the vertical
-                # fractions move, and they move by exactly the growth. Measuring
-                # after the extension instead put the search window over the
-                # penalty arc, which is a longer bright run than the crossbar —
-                # the goal came back 0.0026 of the plate tall.
-                for edge in ('top', 'base'):
-                    goal[edge] /= (1 + extend)
+                # fractions move, and they move by exactly the growth.
+                for post in ('near', 'far'):
+                    x, top, base = goal[post]
+                    goal[post] = (x, top / (1 + extend), base / (1 + extend))
+
         dst = os.path.join(IMG, name + '.webp')
         img.save(dst, 'WEBP', quality=quality, method=6)
-        print('%-24s %sx%-5s %30s %5.0f KB'
+        print('%-16s %sx%-5s %38s %5.0f KB'
               % (name, img.width, img.height, '', os.path.getsize(dst) / 1024))
         if goal:
             print('    painted goal, as fractions of the plate — css/game.css:')
-            print('      left post %.4f   right post %.4f' % (goal['left'], goal['right']))
-            print('      crossbar  %.4f   goal line  %.4f' % (goal['top'], goal['base']))
-            print('      width     %.4f   height     %.4f   (of plate width)'
-                  % (goal['w'], goal['h_of_w']))
+            print('      --goal-near: %.4f  top %.4f  base %.4f' % goal['near'])
+            print('      --goal-far:  %.4f  top %.4f  base %.4f' % goal['far'])
 
 
 if __name__ == '__main__':

@@ -27,11 +27,13 @@
      they can never disagree: at t=1 the ball is exactly on the target at
      exactly S_END of its size, whatever else is retuned.
 
-     0.22, where the penalty game used 0.30. A free kick is struck from about
-     twice the distance, so the ball ends up visibly smaller and the front
-     loading is stronger -- it leaves the boot fast and floats in at the end,
-     which is what the long ones look like. */
-  var S_END = 0.22;                 // apparent size on the goal line
+     0.16. The penalty game this grew from used 0.30 and the head-on free kick
+     0.22; the training-ground plate is shot from further out again and from
+     one side, so the goal is a third of the frame width it used to be and the
+     ball has to arrive correspondingly smaller. The front loading is stronger
+     with it -- the ball leaves the boot fast and floats in at the end, which
+     is what the long ones look like. */
+  var S_END = 0.16;                 // apparent size on the goal line
   var Z_END = 1 / S_END;            // 4.545 -- depth there
 
   function depth(t)    { return 1 + (Z_END - 1) * t; }
@@ -147,10 +149,15 @@
               window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
-  /* Where the net meets the grass, in stage pixels. .goal is the painted
-     goal's box and its bottom edge is the goal line itself. The ball's shadow
-     travels to here. */
+  /* Where the near post meets the grass, in stage pixels. The ball's shadow
+     travels to here.
+
+     The near-base corner marker, not .goal's own bottom edge. The camera is
+     three-quarter now, so the goal mouth is a quadrilateral and .goal is only
+     the box the four corner markers hang in — its bottom edge is the bottom of
+     the pitch, which would run the shadow off the screen. */
   function goalLine() {
+    if (!goalEl) return box().height;
     return goalEl.getBoundingClientRect().bottom - box().top;
   }
 
@@ -696,7 +703,7 @@
   function init() {
     stage = document.getElementById('stage');
     canvas = document.querySelector('.fx');
-    goalEl = document.querySelector('.goal');
+    goalEl = document.querySelector('.goal__c[data-corner="near-base"]');
     if (canvas) ctx = canvas.getContext('2d');
     loadBall();
   }

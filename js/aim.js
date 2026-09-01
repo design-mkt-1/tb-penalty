@@ -53,6 +53,42 @@
     return Math.min(s.width, s.height);
   }
 
+  /* ── the goal, as a quadrilateral ─────────────────────────── */
+
+  /* The camera is three-quarter, so the goal mouth is not a rectangle on
+     screen: both posts are vertical but the nearer one is taller, and their
+     tops and bases do not line up. css/game.css puts four zero-size markers on
+     its corners and this reads them back, so the geometry is stated once, in
+     the stylesheet, and measured here rather than repeated.
+
+     Re-read on every drag rather than cached. A drag is a few dozen frames and
+     four getBoundingClientRect calls are nothing beside them; a cache would
+     have to be invalidated on resize, on orientation change and on the soft
+     keyboard, and the first one anybody forgot would aim the game at where the
+     goal used to be. */
+  function quad() {
+    var q = {};
+    cfg.corners.forEach(function (el) {
+      var r = TBFx.rect(el);
+      q[el.dataset.corner] = { x: r.x, y: r.y };
+    });
+    return q;
+  }
+
+  /* A point inside that quad, by bilinear interpolation.
+
+     u runs from the near post to the far one, v from the crossbar down to the
+     goal line. Interpolating the two posts separately and then between them is
+     what keeps a target at the far post correctly smaller and higher than the
+     same (u, v) at the near one. */
+  function inQuad(q, u, v) {
+    var topX = q['near-top'].x + (q['far-top'].x - q['near-top'].x) * u;
+    var topY = q['near-top'].y + (q['far-top'].y - q['near-top'].y) * u;
+    var baseX = q['near-base'].x + (q['far-base'].x - q['near-base'].x) * u;
+    var baseY = q['near-base'].y + (q['far-base'].y - q['near-base'].y) * u;
+    return { x: topX + (baseX - topX) * v, y: topY + (baseY - topY) * v };
+  }
+
   /* ── the reading ──────────────────────────────────────────── */
 
   /* Where in the goal a drag points.
@@ -67,27 +103,27 @@
      long drag to the corner should be a shot into the top corner, not a shot
      into the side netting at knee height. It also means the two readings a
      player has to hold in their head are "which way" and "how far", which is
-     what a run-up feels like. */
+     what a run-up feels like.
+
+     Both come out as (u, v) in the goal's own coordinates and are only then
+     turned into a screen point, so the aim follows the perspective instead of
+     fighting it. */
   function target(dx, dy) {
-    var g = TBFx.rect(cfg.goal);
     var reach = shortEdge() * FULL;
 
     var across = Math.max(-1.35, Math.min(1.35, dx / reach));
     var len = Math.min(1, Math.sqrt(dx * dx + dy * dy) / reach);
 
-    // The bottom of the goal is the grass; nothing is aimed below it. The top
-    // stops just under the bar rather than over it: sideways, a miss is worth
-    // having because it is the visitor's own doing, but a full-power drag is
-    // the most deliberate thing they can do and it should not be the one that
-    // sails over.
-    var high = g.top + g.h * 0.08;
-    var low = g.bottom - g.h * 0.08;
+    // v = 1 is the goal line and v = 0 the crossbar, so a longer drag is a
+    // higher shot. It stops just under the bar rather than over it: sideways,
+    // a miss is worth having because it is the visitor's own doing, but a
+    // full-power drag is the most deliberate thing they can do and should not
+    // be the one that sails over.
+    var u = 0.5 + across * 0.5;
+    var v = 0.92 - len * 0.84;
 
-    return {
-      x: g.x + across * (g.w / 2),
-      y: low + (high - low) * len,
-      power: len
-    };
+    var p = inQuad(quad(), u, v);
+    return { x: p.x, y: p.y, power: len, u: u, v: v };
   }
 
   /* The bow: the mean perpendicular offset of the sampled path from its own
@@ -145,14 +181,15 @@
      "where the ball goes" is this module's whole job, and game.js is only
      allowed to decide what happens to it. */
   function toFlight(shot, ballEl) {
-    var g = TBFx.rect(cfg.goal);
+    var q = quad();
+    var mouth = Math.abs(q['far-top'].x - q['near-top'].x);
     var b = TBFx.rect(ballEl);
     return TBFx.flight(
       { x: b.x, y: b.y },
       shot.aim,
       {
         r: b.w / 2,
-        bend: shot.curl * g.w * MAX_BEND,
+        bend: shot.curl * mouth * MAX_BEND,
         // A harder strike is a flatter one. The weak shots loop.
         lift: 34 + (1 - shot.power) * 52
       }
@@ -160,20 +197,37 @@
   }
 
   /* The shot the ball button fires when it is pressed rather than dragged:
-     Enter and Space reach it, and so does an impatient tap. Random aim and
-     random curl, so it is a real shot and not a scripted one — the outcome is
-     decided by the attempt index in game.js either way. */
+     an impatient tap, and Enter on the ball. Random aim and random curl, so it
+     is a real shot and not a scripted one — the outcome is decided by the
+     attempt index in game.js either way. */
   function random() {
-    var g = TBFx.rect(cfg.goal);
-    var across = (Math.random() * 2 - 1) * 0.86;
-    var up = 0.35 + Math.random() * 0.6;
+    var u = 0.1 + Math.random() * 0.8;
+    var v = 0.15 + Math.random() * 0.7;
+    var p = inQuad(quad(), u, v);
     return {
-      aim: {
-        x: g.x + across * (g.w / 2),
-        y: g.bottom - g.h * 0.08 + (g.top + g.h * 0.08 - (g.bottom - g.h * 0.08)) * up
-      },
-      power: up,
+      aim: { x: p.x, y: p.y },
+      power: 1 - v,
       curl: (Math.random() * 2 - 1) * 0.9,
+      length: 0
+    };
+  }
+
+  /* The shot a keyboard user fires at a target they have chosen. The prize is
+     decided by which target the ball hits, so a visitor who cannot drag still
+     has to be able to pick one — and the only honest way to give them that is
+     to aim the shot at the thing they activated.
+
+     The curl is random, as it is for the tap: they chose a prize, not a
+     technique. */
+  function atTarget(el, ballEl) {
+    var t = TBFx.rect(el);
+    var q = quad();
+    var top = (q['near-top'].y + q['far-top'].y) / 2;
+    var base = (q['near-base'].y + q['far-base'].y) / 2;
+    return {
+      aim: { x: t.x, y: t.y },
+      power: base === top ? 0.6 : Math.max(0, Math.min(1, (base - t.y) / (base - top))),
+      curl: (Math.random() * 2 - 1) * 0.6,
       length: 0
     };
   }
@@ -258,12 +312,26 @@
       if (!cfg.enabled()) return;
       cfg.onShoot(random());
     });
+
+    /* The targets. Clicking one shoots at it, which is the pointer shortcut a
+       keyboard user gets for free — and the only way either of them chooses a
+       prize without dragging. A spent target is pointer-events: none and out
+       of the tab order, so it cannot arrive here twice. */
+    cfg.targets.forEach(function (el) {
+      el.addEventListener('click', function () {
+        if (!cfg.enabled()) return;
+        cfg.onShoot(atTarget(el, cfg.ball), el);
+      });
+    });
   }
 
   window.TBAim = {
     init: init,
     random: random,
+    atTarget: atTarget,
     toFlight: toFlight,
+    quad: quad,
+    inQuad: inQuad,
     MAX_BEND: MAX_BEND
   };
 })();

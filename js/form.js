@@ -357,8 +357,16 @@
       o.setAttribute('aria-selected', String(on));
     });
     relabel(bonusValue, 'bonus.' + value + '.title');
-    pickerOpen(bonusBtn, bonusMenu, false);
-    bonusBtn.focus({ preventScroll: true });
+
+    /* Only close the menu and take focus back if the menu was actually open —
+       the same guard pickCountry() has. This is also called by restore() and,
+       once the game started choosing the prize, by open() before the card is
+       on screen; an unconditional focus() there moves focus to a control
+       inside a hidden dialog. */
+    if (bonusBtn.getAttribute('aria-expanded') === 'true') {
+      pickerOpen(bonusBtn, bonusMenu, false);
+      bonusBtn.focus({ preventScroll: true });
+    }
   }
 
   function buildCountries() {
@@ -459,8 +467,12 @@
     });
   }
 
-  function open() {
+  /* `opts.bonus` is the prize the visitor knocked over, and the card opens
+     with it already chosen. It is not a new control: it is the one the form
+     already offers, answered in advance by the game. */
+  function open(opts) {
     if (!sheet.hidden) return;
+    if (opts && opts.bonus) pickBonus(opts.bonus);
     lastFocus = document.activeElement;
     closing = false;
 

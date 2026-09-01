@@ -1,21 +1,21 @@
 /* The scripted free kick.
 
-   The first attempt always hits the wall, the second always goes in. What the
-   visitor's drag decides is where the ball is aimed, how hard it is struck and
-   which way it bends — never whether it scores.
+   The first attempt always hits the dummy rack, the second always hits a
+   target. What the visitor's drag decides is where the ball is aimed, how hard
+   it is struck, which way it bends — and, on the second attempt, which of the
+   four prizes they win.
 
-   The wall is not a prop and the block is not a cut. The wall element has a
-   real box on screen and a real depth along the flight, both derived from
-   where css/game.css puts it, and a shot is blocked when the trajectory is
-   inside that box at that depth. So the first attempt is arranged by moving
-   the ball's target until it genuinely crosses the wall, not by playing a
-   block animation over a shot that missed; and the second is arranged by
-   lifting or bending it until it genuinely clears, not by switching the
-   collision off. If the CSS moves the wall, both keep working. */
+   Neither outcome is faked. The rack has a real box on screen and a real depth
+   along the flight, both derived from where css/game.css puts it, and a shot
+   is blocked when the trajectory is inside that box at that depth. So the
+   first attempt is arranged by moving the ball's target until it genuinely
+   crosses the rack, not by playing a block over a shot that missed; and the
+   second is arranged by lifting or bending it until it genuinely clears. If
+   the CSS moves the rack, both keep working. */
 (function () {
   'use strict';
 
-  var stage, ball, keeper, msg, anim, goal, dust, hit, wall;
+  var stage, ball, msg, goal, hit, rack, rackZone, pitch, targets;
   var attempt = 0;
   var busy = false;
   var msgTimer = 0;
@@ -46,38 +46,50 @@
     return new Promise(function (r) { later(r, ms); });
   }
 
-  /* ══ the wall ═════════════════════════════════════════════════ */
+  /* ══ the dummy rack ═══════════════════════════════════════════ */
 
-  /* How far the wall jumps, as a fraction of its own height. One number,
-     used both by the animation that lifts the sprite and by the box the
-     trajectory is tested against — the alternative is a wall that is drawn
-     in one place and blocks in another. */
-  var WALL_JUMP = 0.17;
+  /* Where the five figures actually are inside the sprite's canvas, as
+     fractions of it. tools/cutout.py exports the object on its full uncropped
+     canvas and prints exactly these four numbers; the rest of the element is
+     empty. Testing the element's own box instead would make the rack half
+     again as wide as it looks, so a ball threading the gap beside it would be
+     stopped by nothing at all. Re-run the tool after changing the render and
+     paste what it reports. */
+  var RACK_BODY = { left: 0.2275, right: 0.7639, top: 0.0808, bottom: 0.9538 };
 
-  /* The clearance a shot needs over or around the jumped wall before it counts
-     as having beaten it, in fractions of the wall's height. Zero would let the
-     winning shot shave the top man's hair, which reads as a graphics glitch
+  /* The clearance a shot needs over or around the rack before it counts as
+     having beaten it, as a fraction of the rack's height. Zero would let the
+     winning shot shave the top dummy's head, which reads as a graphics glitch
      rather than as a goal. */
   var CLEAR = 0.14;
 
-  /* Where the wall stands along the flight.
+  /* The rack's box on screen: the figures, not the canvas around them. */
+  function rackBox() {
+    var r = TBFx.rect(rack);
+    return {
+      left: r.left + r.w * RACK_BODY.left,
+      right: r.left + r.w * RACK_BODY.right,
+      top: r.top + r.h * RACK_BODY.top,
+      bottom: r.top + r.h * RACK_BODY.bottom,
+      h: r.h * (RACK_BODY.bottom - RACK_BODY.top)
+    };
+  }
 
-     Not a constant. `t` in a flight runs from the ball to the goal, and the
+  /* Where the rack stands along the flight.
+
+     Not a constant. `t` in a flight runs from the ball to its target, and the
      ball's ground track runs from under the ball to the goal line in the same
-     parameter, so a wall standing on the grass has a `t` that can be read off
-     its own feet — invert the camera's progress curve and there it is. Written
-     as a number instead, it would have to be re-tuned by hand every time the
-     CSS nudged the wall, and nothing would say so when it was not. */
-  function wallDepth(path) {
-    var w = TBFx.rect(wall);
-    // Their boots, not the bottom of the canvas they are exported on: the
-    // depth is where the men are standing.
-    var feet = w.top + w.h * WALL_BODY.bottom;
+     parameter, so an object standing on the grass has a `t` that can be read
+     off its own feet — invert the camera's progress curve and there it is.
+     Written as a number instead, it would have to be re-tuned by hand every
+     time the CSS nudged the rack, and nothing would say so when it was not. */
+  function rackDepth(path) {
+    var box = rackBox();
     var g0 = path.at(0).ground;
     var g1 = path.at(1).ground;
     if (g1 === g0) return 0.4;
 
-    var u = (feet - g0) / (g1 - g0);
+    var u = (box.bottom - g0) / (g1 - g0);
     u = Math.max(0.05, Math.min(0.92, u));
 
     // u = Z*t / (1 + (Z-1)t)  inverted for t.
@@ -85,36 +97,9 @@
     return u / (Z - u * (Z - 1));
   }
 
-  /* Where the four men actually are inside the sprite's canvas, as fractions
-     of it. tools/cutout.py exports every pose on one uncropped canvas so a
-     swap cannot move them, which means most of the element is empty — the
-     canvas is 824 wide and the men occupy x 231 to 592 of it, y 46 to 411 of
-     460. Testing the element's own box instead makes the wall two thirds
-     wider than it looks and taller than the men are, so a ball threading the
-     gap outside them is stopped by nothing at all.
-
-     These come from the bounding box cutout.py prints. Re-run it after
-     changing the renders and paste what it reports. */
-  var WALL_BODY = { left: 0.280, right: 0.719, top: 0.100, bottom: 0.893 };
-
-  /* The wall's box at the moment the ball reaches it: the men, on screen,
-     lifted by the jump they are in the middle of. */
-  function wallBox() {
-    var w = TBFx.rect(wall);
-    var h = w.h * (WALL_BODY.bottom - WALL_BODY.top);
-    var lift = h * WALL_JUMP;
-    return {
-      left: w.left + w.w * WALL_BODY.left,
-      right: w.left + w.w * WALL_BODY.right,
-      top: w.top + w.h * WALL_BODY.top - lift,
-      bottom: w.top + w.h * WALL_BODY.bottom - lift,
-      h: h
-    };
-  }
-
-  function hitsWall(path, t, boxed) {
+  function hitsRack(path, t, box) {
     var p = path.at(t);
-    return p.x > boxed.left && p.x < boxed.right && p.y > boxed.top;
+    return p.x > box.left && p.x < box.right && p.y > box.top;
   }
 
   /* Rebuild a flight that keeps its bend and lift but arrives somewhere else.
@@ -138,42 +123,38 @@
                        { r: path.r, bend: bend, lift: lift / TBFx.unit() });
   }
 
-  /* ── attempt one: into the wall ───────────────────────────── */
+  /* ── attempt one: into the rack ───────────────────────────── */
 
-  /* Whatever was aimed at, the ball ends up in the wall. The point it is sent
-     to is the point of the wall nearest to where the shot was already going,
-     so a shot down the left is blocked by the man on the left: the visitor's
-     aim still decides everything except the result. */
-  function intoWall(path, t) {
-    var box = wallBox();
-    if (hitsWall(path, t, box)) return path;
+  /* Whatever was aimed at, the ball ends up in the dummies. The point it is
+     sent to is the point of the rack nearest to where the shot was already
+     going, so a shot down the left is blocked by the dummy on the left: the
+     visitor's aim still decides everything except the result. */
+  function intoRack(path, t) {
+    var box = rackBox();
+    if (hitsRack(path, t, box)) return path;
 
     var p = path.at(t);
     var inset = (box.right - box.left) * 0.12;
     var x = Math.max(box.left + inset, Math.min(box.right - inset, p.x));
     var y = Math.max(box.top + box.h * 0.18,
-                     Math.min(box.bottom - box.h * 0.1, p.y));
+                     Math.min(box.bottom - box.h * 0.12, p.y));
     return retarget(path, { x: x, y: y }, t);
   }
 
-  /* ── attempt two: over it or round it ─────────────────────── */
+  /* ── attempt two: onto a target ───────────────────────────── */
 
-  /* First put the arrival inside the posts — a winning shot has to be on
-     target before anything else is decided about it — then buy the clearance
-     the wall needs, without moving the arrival again. */
-  function beatWall(path, t, curl) {
-    var g = TBFx.rect(goal);
-    var inset = g.w * 0.09;
-    var aim = {
-      x: Math.max(g.left + inset, Math.min(g.right - inset, path.to.x)),
-      y: Math.max(g.top + g.h * 0.14, Math.min(g.bottom - g.h * 0.12, path.to.y))
-    };
+  /* The winning shot arrives on a target, because the target is the prize.
+     First put the arrival on it, then buy whatever clearance the rack needs
+     without moving that arrival again. */
+  function ontoTarget(path, t, curl, targetEl) {
+    var aim = TBFx.rect(targetEl);
+    aim = { x: aim.x, y: aim.y };
 
     var K = TBFx.unit();
     var over = TBFx.flight(path.from, aim,
                            { r: path.r, bend: path.bend, lift: path.lift / K });
-    var box = wallBox();
-    if (!hitsWall(over, t, box)) return over;
+    var box = rackBox();
+    if (!hitsRack(over, t, box)) return over;
 
     var p = over.at(t);
     var margin = box.h * CLEAR;
@@ -183,29 +164,26 @@
        contradicting its own input. Raising the arc does not move either end of
        it, so the arrival survives untouched.
 
-       The ceiling is what stops a shot aimed at the bottom corner from
-       becoming a lob: past it, going round is the better lie. */
+       The ceiling is what stops a shot at a low target from becoming a lob:
+       past it, going round is the better lie. */
     var need = (p.y - (box.top - margin)) / (4 * t * (1 - t) * p.s);
     var lift = (path.lift / K) + Math.max(0, need) / K;
     var straight = curl == null || Math.abs(curl) < 0.35;
     if (straight && lift < 320) {
-      var over2 = TBFx.flight(path.from, aim,
-                              { r: path.r, bend: path.bend, lift: lift });
-      if (!hitsWall(over2, t, box)) return over2;
+      var high = TBFx.flight(path.from, aim,
+                             { r: path.r, bend: path.bend, lift: lift });
+      if (!hitsRack(high, t, box)) return high;
     }
 
-    /* Round the outside, on the side the visitor curled towards. The arrival
-       is already fixed by the model — bending cannot move it — so this only
-       has to solve for how much bend puts the ball outside the wall as it
-       passes:
+    /* Round the outside, on the side the visitor curled towards — or, if they
+       did not curl, the side the target is on. The arrival is already fixed by
+       the model, so this only has to solve for how much bend puts the ball
+       clear of the rack as it passes:
 
          x(t) = from.x + A·u + bend·(u - t²·s/S_END)     A = aim.x - from.x
 
-       which is linear in bend, and the bracket is positive for any wall short
-       of the goal line. */
-    /* Which side to pass. The curl if there was one, because that is what the
-       visitor asked for; otherwise the side they aimed at, so a shot dragged
-       towards the left post does not swerve away to the right. */
+       which is linear in bend, and the bracket is positive for any obstacle
+       short of the goal line. */
     var side = straight
       ? (aim.x < (box.left + box.right) / 2 ? -1 : 1)
       : ((curl || 0) < 0 ? -1 : 1);
@@ -214,10 +192,11 @@
     var denom = p.u - t * t * (p.s / TBFx.S_END);
     if (Math.abs(denom) > 1e-4) {
       var bend = (edge - path.from.x - A * p.u) / denom;
-      var capped = Math.max(-g.w * 1.1, Math.min(g.w * 1.1, bend));
+      var span = box.right - box.left;
+      var capped = Math.max(-span * 2.2, Math.min(span * 2.2, bend));
       var round = TBFx.flight(path.from, aim,
                               { r: path.r, bend: capped, lift: path.lift / K });
-      if (!hitsWall(round, t, box)) return round;
+      if (!hitsRack(round, t, box)) return round;
     }
 
     // Nothing curled far enough: go over it after all, however high that is.
@@ -225,28 +204,22 @@
                        { r: path.r, bend: path.bend, lift: lift });
   }
 
-  /* ══ geometry helpers ═════════════════════════════════════════ */
-
-  /* Which of the six cells the ball is heading for, so the keeper has a dive
-     to pick. The aim is a continuous point now rather than one of six buttons,
-     so it is bucketed here; js/animator.js keeps its cell names and its
-     COVERS / WRONG_WAY tables untouched. */
-  function cellFor(aim) {
-    var g = TBFx.rect(goal);
-    var col = aim.x < g.left + g.w / 3 ? 'l'
-            : aim.x > g.left + g.w * 2 / 3 ? 'r' : 'c';
-    var row = aim.y < g.top + g.h * 0.5 ? 't' : 'b';
-    return row + col;
+  /* Which target a shot is going to win. The one nearest to where the visitor
+     actually aimed, so the prize is theirs rather than the game's — and never
+     one that has already been knocked over. */
+  function nearestTarget(aim) {
+    var best = null;
+    var bestD = Infinity;
+    targets.forEach(function (el) {
+      if (el.hasAttribute('data-spent')) return;
+      var r = TBFx.rect(el);
+      var d = Math.pow(r.x - aim.x, 2) + Math.pow(r.y - aim.y, 2);
+      if (d < bestD) { bestD = d; best = el; }
+    });
+    return best;
   }
 
-  /* Which way the ball comes off. Off the wall it is pushed back roughly the
-     way it came; off a glove the keeper's dive throws it further out. */
-  function sideOf(x) {
-    var g = TBFx.rect(goal);
-    return x < g.x ? -1 : 1;
-  }
-
-  /* ── impact ───────────────────────────────────────────────── */
+  /* ══ the scene ════════════════════════════════════════════════ */
 
   /* Restart a one-shot CSS animation. Removing the class is not enough on its
      own -- the style has to be recomputed in between, which reading a layout
@@ -258,33 +231,30 @@
     el.classList.add('is-live');
   }
 
-  /* The strike point, as a share of the goal box, so the ring lands where the
-     ball hit whatever size the goal renders at. */
+  /* The strike point, as a share of the pitch. Off the pitch and not the goal,
+     because a blocked shot strikes the rack and that is nowhere near the goal
+     mouth. */
   function mark(point) {
-    var g = TBFx.rect(goal);
+    var p = TBFx.rect(pitch);
     fx(hit, {
-      '--hit-x': ((point.x - g.left) / g.w * 100).toFixed(1) + '%',
-      '--hit-y': ((point.y - g.top) / g.h * 100).toFixed(1) + '%'
+      '--hit-x': ((point.x - p.left) / p.w * 100).toFixed(1) + '%',
+      '--hit-y': ((point.y - p.top) / p.h * 100).toFixed(1) + '%'
     });
   }
 
-  function jumpWall() {
-    wall.dataset.pose = 'jump';
-    // The men's own height, not the canvas's — the same quantity wallBox()
-    // lifts the collision by, so what is drawn and what blocks agree.
-    var box = wallBox();
-    var lift = -(box.h * WALL_JUMP);
-    if (TBFx.reduced()) {
-      later(function () { wall.dataset.pose = 'idle'; }, 420);
-      return;
-    }
-    wall.animate([
-      { transform: 'translateX(-50%) translateY(0)' },
-      { transform: 'translateX(-50%) translateY(' + lift.toFixed(1) + 'px)', offset: 0.42 },
-      { transform: 'translateX(-50%) translateY(' + (lift * 0.9).toFixed(1) + 'px)', offset: 0.6 },
-      { transform: 'translateX(-50%) translateY(0)' }
-    ], { duration: 820, easing: 'cubic-bezier(.2,.9,.3,1)' });
-    later(function () { wall.dataset.pose = 'idle'; }, 800);
+  /* The rack takes the shot. It is bolted to a wheeled frame, so it rocks back
+     and settles rather than jumping — five plastic figures on castors do not
+     leave the ground. */
+  function rockRack() {
+    if (TBFx.reduced()) return;
+    var lift = TBFx.rect(rack).h * 0.02;
+    rack.animate([
+      { transform: 'rotate(0deg) translateY(0)' },
+      { transform: 'rotate(-2.4deg) translateY(' + (-lift).toFixed(1) + 'px)', offset: 0.18 },
+      { transform: 'rotate(1.4deg) translateY(0)', offset: 0.46 },
+      { transform: 'rotate(-0.5deg) translateY(0)', offset: 0.72 },
+      { transform: 'rotate(0deg) translateY(0)' }
+    ], { duration: 900, easing: 'cubic-bezier(.2,.9,.3,1)' });
   }
 
   /* ── messages ─────────────────────────────────────────────── */
@@ -309,54 +279,46 @@
 
   /* ══ the two scripted shots ═══════════════════════════════════ */
 
-  function shoot(shot) {
+  /* `chosen` is set when the shot came from pressing a target rather than from
+     dragging the ball — a keyboard user picking their prize. */
+  function shoot(shot, chosen) {
     if (busy) return;
     busy = true;
     attempt += 1;
 
     var scores = attempt >= 2;
-    var T = TBAnimator.TIMING;
     var aimed = TBAim.toFlight(shot, ball);
-    var t = wallDepth(aimed);
-    var path = scores ? beatWall(aimed, t, shot.curl) : intoWall(aimed, t);
+    var t = rackDepth(aimed);
 
-    var cell = cellFor(path.to);
-    var dive = scores ? TBAnimator.WRONG_WAY[cell] : TBAnimator.COVERS[cell];
+    var target = null;
+    var path;
+    if (scores) {
+      target = chosen && !chosen.hasAttribute('data-spent')
+        ? chosen
+        : nearestTarget(shot.aim);
+      path = target ? ontoTarget(aimed, t, shot.curl, target) : aimed;
+    } else {
+      path = intoRack(aimed, t);
+    }
 
     stage.dataset.state = 'shooting';
     ball.classList.add('is-armed');
     TBAudio.play('kick', 0.9);
-    jumpWall();
-
-    // The keeper commits before the ball arrives, as he would in a real free
-    // kick: he is reading the strike, not the flight.
-    later(function () { anim.play(dive); }, 90);
-
-    // The plume and the jolt are the impact a still sprite cannot show. Which
-    // frame carries that impact depends on the dive, so the animator is asked
-    // rather than told: a high dive never lands, and its only contact with the
-    // grass is the push-off.
-    var impact = anim.impact(dive);
-    later(function () {
-      fx(dust, { '--dust-x': impact.x });
-      TBFx.shake(220, impact.force);
-    }, 90 + T.duration * impact.at);
 
     if (!scores) {
       return TBFx.shoot(ball, path, { duration: 700, stopAt: t })
         .then(function (state) {
           mark(state);
+          rockRack();
           TBAudio.play('save', 0.9);
           TBFx.shake(260, 4);
-          // Off the wall, not off a glove: it comes back the way it came.
-          return TBFx.deflect(state, -sideOf(state.x) || 1);
+          // Off the rack: it comes back roughly the way it came.
+          var box = rackBox();
+          return TBFx.deflect(state, state.x < (box.left + box.right) / 2 ? -1 : 1);
         })
         .then(function () {
-          say(TBI18n.t('msg.wall'), 1900);
+          say(TBI18n.t('msg.blocked'), 1900);
           ball.classList.remove('is-armed');
-          // He gets to enjoy it. react() stands him back up on its own once
-          // the hold is over, so nothing else has to reset him here.
-          anim.react('cheer', { hold: 900 });
           return TBFx.home(ball);
         })
         .then(function () {
@@ -368,6 +330,7 @@
 
     TBFx.shoot(ball, path, { duration: 760 })
       .then(function (state) {
+        var bonus = target ? target.dataset.bonus : 'sport';
         mark(state);
         TBAudio.play('net', 0.8);
         TBAudio.play('cheer', 0.7);
@@ -375,32 +338,32 @@
         TBFx.shake(320, 5);
         TBFx.intoNet(state);
         stage.dataset.state = 'celebrate';
+
+        // The target turns over and stays turned: it has been won and is out
+        // of the game. Marked before the confetti so the prize is already
+        // showing when the eye comes back to it.
+        if (target) target.setAttribute('data-spent', '');
+
         // A beat, then the confetti. 110 bits out of the strike point cover
         // the net bulge completely, and the bulge is over inside 520ms --
         // fired together, the net was never seen at all. The gap also reads
         // as a crowd taking a moment to realise.
         later(function () {
           TBFx.burst(state);
-          // With the burst, not with the goal: the 180ms gap is the whole
-          // point of the delay, and a pop on the goal would close it.
+          // With the burst, not with the hit: the 180ms gap is the whole
+          // point of the delay, and a pop on the impact would close it.
           TBAudio.play('confetti', 0.55);
         }, 180);
-        // He is still in the air when the ball crosses the line. Let him land
-        // before he reacts to it.
-        later(function () {
-          anim.react('beaten', { hold: 1200 });
-          // Quiet: this one plays under net, cheer and the confetti, and is
-          // meant to be felt rather than picked out. See tools/sfx.py.
-          TBAudio.play('slump', 0.5);
-        }, 320);
-        say(TBI18n.t('msg.goal'), 1400);
-        return wait(1500);
+
+        say(TBI18n.t('msg.prize.' + bonus), 1500);
+        return wait(1600).then(function () { return bonus; });
       })
-      .then(function () {
+      .then(function (bonus) {
         ball.classList.remove('is-armed');
         stage.dataset.state = 'form';
         busy = false;
-        window.TBForm.open();
+        // The prize the visitor knocked over is the bonus the card opens on.
+        window.TBForm.open({ bonus: bonus });
       })
       .catch(recover);
   }
@@ -420,10 +383,11 @@
   /* ── back to the start ────────────────────────────────────── */
 
   /* Called when the registration card closes. The stage is still carrying
-     data-state="form", which holds .ball at pointer-events:none (css/game.css),
-     and `attempt` is still past the end of the scripted sequence — so without
-     this the page is dead, and clearing only the state would make the next
-     shot score instantly. Both have to be undone together. */
+     data-state="form", which holds .ball and the targets at
+     pointer-events:none (css/game.css), `attempt` is still past the end of the
+     scripted sequence, and one target is still lying face up with its prize
+     showing. All three have to be undone together, or the page is dead behind
+     a card nobody can see. */
   function reset() {
     clearTimers();
     clearTimeout(msgTimer);
@@ -432,14 +396,12 @@
     msg.hidden = true;
 
     ball.classList.remove('is-armed');
-    dust.classList.remove('is-live');
     hit.classList.remove('is-live');
-    wall.dataset.pose = 'idle';
+    targets.forEach(function (el) { el.removeAttribute('data-spent'); });
 
     attempt = 0;
     busy = false;
 
-    anim.reset();
     stage.dataset.state = 'idle';
     return TBFx.home(ball);
   }
@@ -448,36 +410,17 @@
 
   function init() {
     stage    = document.getElementById('stage');
+    pitch    = document.querySelector('.pitch');
     ball     = document.querySelector('.ball');
-    keeper   = document.querySelector('.keeper');
     goal     = document.querySelector('.goal');
-    wall     = document.querySelector('.wall');
-    dust     = document.querySelector('.dust');
+    rack     = document.querySelector('.dummies');
+    rackZone = document.querySelector('.dummies-zone');
     hit      = document.querySelector('.hit');
     msg      = document.querySelector('.msg');
+    targets  = Array.prototype.slice.call(document.querySelectorAll('.target'));
 
     TBFx.init();
-    anim = new TBAnimator.PoseAnimator(keeper,
-                                       document.querySelector('.keeper-shadow'));
-    /* Dive sprites that nothing needs until the first shot. The one pose on
-       screen, keeper-idle, comes from css/game.css and is already loading.
-       Warm the rest when the browser is idle, or on the first gesture,
-       whichever comes first — a shot cannot start before that gesture, so the
-       sprites are never late. */
-    var warmed = false;
-    var warm = function () {
-      if (warmed) return;
-      warmed = true;
-      anim.preload();
-      var jump = new Image();
-      jump.decoding = 'async';
-      jump.src = 'assets/img/wall-jump.webp';
-    };
-    if (window.requestIdleCallback) window.requestIdleCallback(warm, { timeout: 3000 });
-    else setTimeout(warm, 1200);
-    window.addEventListener('pointerdown', warm, { once: true });
 
-    keeper.classList.add('is-idling');
     ball.classList.add('is-bobbing');
     stage.dataset.state = 'idle';
 
@@ -485,6 +428,8 @@
       ball: ball,
       stage: stage,
       goal: goal,
+      corners: Array.prototype.slice.call(document.querySelectorAll('.goal__c')),
+      targets: targets,
       enabled: function () { return !busy && stage.dataset.state === 'idle'; },
       onShoot: shoot
     });

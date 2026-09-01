@@ -4,16 +4,16 @@
   'use strict';
 
   var KEY = 'tb-muted';
-  /* confetti and slump are rendered by tools/sfx.py rather than sourced; the
-     other five are clips. Every entry here is played from somewhere. */
+  /* confetti is rendered by tools/sfx.py rather than sourced; the other five
+     are clips. Every entry here is played from somewhere — `slump` was the
+     goalkeeper's head dropping after a goal, and went when he did. */
   var FILES = {
     kick:    'assets/audio/kick.mp3',
     save:    'assets/audio/save.mp3',
     net:     'assets/audio/net.mp3',
     cheer:   'assets/audio/cheer.mp3',
     whistle: 'assets/audio/whistle.mp3',
-    confetti:'assets/audio/confetti.mp3',
-    slump:   'assets/audio/slump.mp3'
+    confetti:'assets/audio/confetti.mp3'
   };
 
   var pool = {};

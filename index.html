@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#040405">
-<title data-i18n="title">TopBet — Curl it past the wall and win!</title>
+<title data-i18n="title">TopBet — Hit the target and win!</title>
 
 <!-- The LCP image and the two latin faces are all discovered late: the plate
      only after css/game.css parses, the fonts only after that stylesheet is
      applied to text. Named here, they start with the stylesheets instead. The
      other four woff2 are unicode-range subsets for UZ/RU and stay deferred. -->
-<link rel="preload" as="image" type="image/webp" href="assets/img/pitch-freekick.webp">
+<link rel="preload" as="image" type="image/webp" href="assets/img/pitch-training.webp">
 <link rel="preload" as="font" type="font/woff2" href="assets/fonts/fira-sans-800-latin.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="assets/fonts/roboto-latin.woff2" crossorigin>
 
@@ -81,42 +81,91 @@
 
     <!-- ── call to action ─────────────────────────────────────── -->
     <div class="tagline">
-      <p class="tagline__text" data-i18n="tagline">Curl it past the wall<br>and win!</p>
+      <p class="tagline__text" data-i18n="tagline">Hit the target<br>and win!</p>
     </div>
 
     <!-- ── pitch ──────────────────────────────────────────────── -->
     <div class="pitch">
-      <!-- The goal is painted into the stadium plate, so this element draws
-           nothing: it is the geometry the aim, the keeper and the effects are
-           hung on, sized and placed to land exactly on the painted posts.
-           See the numbers in css/game.css. -->
-      <div class="goal">
-        <div class="dust" aria-hidden="true"></div>
-        <div class="keeper-shadow" aria-hidden="true"></div>
-        <div class="keeper" data-pose="idle" role="presentation"></div>
-        <div class="hit" aria-hidden="true"></div>
+      <!-- The goal is painted into the plate and the camera is three-quarter,
+           so the goal mouth is a QUADRILATERAL on screen, not a box. These
+           four empty markers sit on its corners — placed by css/game.css from
+           the fractions tools/cutout.py measures — and js/aim.js reads their
+           positions back to work out where a drag is pointing. The geometry
+           lives in one place and JS measures it rather than repeating it. -->
+      <div class="goal" aria-hidden="true">
+        <i class="goal__c" data-corner="near-top"></i>
+        <i class="goal__c" data-corner="far-top"></i>
+        <i class="goal__c" data-corner="far-base"></i>
+        <i class="goal__c" data-corner="near-base"></i>
       </div>
 
-      <!-- The wall stands between the taker and the goal, so it is a sibling
-           of .goal rather than a child of it: it is nearer the camera and
-           has to draw over the keeper. Its depth along the flight is
-           --wall-t in css/game.css, and js/game.js reads that number to
-           decide whether a shot has cleared it. -->
-      <div class="wall-zone" aria-hidden="true">
-        <div class="wall-shadow"></div>
-        <div class="wall" data-pose="idle"></div>
+      <!-- The four prize targets, hung inside that quad. Real buttons: a
+           pointer user drags the ball and never touches one, but the target
+           decides which bonus is won, so a keyboard user has to be able to
+           choose. Each carries its own place in the quad and its own prize.
+
+           Two faces. The front is the crosshair; the back is the prize, and
+           the target turns over to show it when the ball arrives. -->
+      <div class="targets" data-i18n-attr="aria-label:targets.label" role="group">
+        <button class="target" type="button" data-bonus="sport" data-i18n-attr="aria-label:target.sport">
+          <span class="target__card">
+            <span class="target__front" aria-hidden="true"></span>
+            <span class="target__back">
+              <b data-i18n="prize.sport.value">200%</b>
+              <i data-i18n="prize.sport.name">sport</i>
+            </span>
+          </span>
+        </button>
+        <button class="target" type="button" data-bonus="casino" data-i18n-attr="aria-label:target.casino">
+          <span class="target__card">
+            <span class="target__front" aria-hidden="true"></span>
+            <span class="target__back">
+              <b data-i18n="prize.casino.value">150 FS</b>
+              <i data-i18n="prize.casino.name">casino</i>
+            </span>
+          </span>
+        </button>
+        <button class="target" type="button" data-bonus="casino" data-i18n-attr="aria-label:target.casino">
+          <span class="target__card">
+            <span class="target__front" aria-hidden="true"></span>
+            <span class="target__back">
+              <b data-i18n="prize.casino.value">150 FS</b>
+              <i data-i18n="prize.casino.name">casino</i>
+            </span>
+          </span>
+        </button>
+        <button class="target" type="button" data-bonus="sport" data-i18n-attr="aria-label:target.sport">
+          <span class="target__card">
+            <span class="target__front" aria-hidden="true"></span>
+            <span class="target__back">
+              <b data-i18n="prize.sport.value">200%</b>
+              <i data-i18n="prize.sport.name">sport</i>
+            </span>
+          </span>
+        </button>
       </div>
+
+      <!-- The dummy rack stands between the taker and the goal, so it is a
+           sibling of .goal and draws over it. Where it stands is what decides
+           its depth along the flight; js/game.js reads that back off the
+           rendered element rather than being told. -->
+      <div class="dummies-zone" aria-hidden="true">
+        <div class="dummies-shadow"></div>
+        <div class="dummies"></div>
+      </div>
+
+      <div class="hit" aria-hidden="true"></div>
 
       <!-- ── transient message ────────────────────────────────── -->
       <!-- Inside the pitch, not the stage: it is placed against the goal
-           line, and only in here does --goal-base mean anything. -->
+           line, and only in here do the goal variables mean anything. -->
       <p class="msg" role="status" aria-live="polite" hidden></p>
     </div>
 
     <!-- ── ball ───────────────────────────────────────────────── -->
     <div class="ball-zone">
       <button class="ball" type="button" data-i18n-attr="aria-label:ball.shoot"></button>
-      <p class="hint" data-i18n="hint.swipe">Drag back from the ball, curve your swipe to bend it</p>
+      <p class="hint" data-i18n="hint.swipe">Drag from the ball to aim. Curve your drag to bend the shot.</p>
     </div>
 
     <!-- ── ball in flight, aim preview, net and confetti ──────── -->
@@ -290,7 +339,6 @@
      everything before DOMContentLoaded, which is the event main.js waits on. -->
 <script defer src="js/stage.js"></script>
 <script defer src="js/audio.js"></script>
-<script defer src="js/animator.js"></script>
 <script defer src="js/fx.js"></script>
 <script defer src="js/aim.js"></script>
 <script defer src="js/i18n.js"></script>

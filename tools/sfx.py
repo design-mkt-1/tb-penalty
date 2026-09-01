@@ -1,12 +1,11 @@
-"""Render the two sound effects the page was missing.
+"""Render the sound effect the page was missing.
 
-Five of the seven moments that make a noise already had a file. Two did not:
-the confetti burst that follows a goal, and the keeper's head dropping after
-he has been beaten. Both are written here rather than sourced, for the same
-reason tools/ball_sheet.py draws the ball -- the output is reproducible from
-the repository, carries no third-party licence onto a commercial landing
-page, and can be re-tuned by editing a number instead of finding another
-clip that nearly fits.
+Five of the six moments that make a noise already had a file. One did not: the
+confetti burst that follows a target being hit. It is written here rather than
+sourced, for the same reason tools/ball_sheet.py draws the ball -- the output
+is reproducible from the repository, carries no third-party licence onto a
+commercial landing page, and can be re-tuned by editing a number instead of
+finding another clip that nearly fits.
 
     python tools/sfx.py
 
@@ -130,43 +129,6 @@ def confetti(rng):
     return out
 
 
-# ── the keeper's head drop ───────────────────────────────────────
-
-def slump(rng):
-    """He has been beaten, and the sound is him going out of the moment.
-
-    A descending tone does the gesture -- 190Hz down to 62 over four fifths of
-    a second, which is a sigh's contour rather than a note. Under it a soft
-    low thump for the shoulders dropping, and a breath of filtered noise so it
-    is a body and not a synthesiser.
-
-    Deliberately quiet and deliberately dark: it plays 320ms after a goal,
-    into the tail of `net`, `cheer` and the confetti, and it is meant to be
-    felt underneath them rather than heard over them. game.js holds the pose
-    for 1200ms, so it finishes with room to spare.
-    """
-    n = seconds(0.90)
-    t = np.arange(n) / SR
-
-    # The sigh. Frequency falls exponentially; phase is its running integral,
-    # or the pitch bends in steps and whistles.
-    f0, f1 = 190.0, 62.0
-    freq = f0 * (f1 / f0) ** (t / t[-1])
-    phase = 2 * np.pi * np.cumsum(freq) / SR
-    tone = np.sin(phase) + 0.30 * np.sin(2 * phase)
-    tone *= decay(n, 0.34, attack=0.030)
-
-    # The shoulders. One low thump at the front, no pitch of its own.
-    thump = normalise(shape(_noise(n, rng), hi=130), 1.0) * decay(n, 0.08, attack=0.004)
-
-    # The breath, well back in the mix and rolled off hard: this sound plays
-    # under the confetti, and anything of its own up at 2kHz just muddies it.
-    breath = normalise(shape(_noise(n, rng), lo=260, hi=900), 1.0)
-    breath *= decay(n, 0.22, attack=0.040)
-
-    return tone * 0.80 + thump * 0.45 + breath * 0.05
-
-
 def _noise(n, rng):
     return rng.standard_normal(n)
 
@@ -175,4 +137,3 @@ def _noise(n, rng):
 
 if __name__ == "__main__":
     write("confetti", confetti(np.random.default_rng(20260831)))
-    write("slump", slump(np.random.default_rng(11)))
