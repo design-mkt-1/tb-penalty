@@ -1,0 +1,799 @@
+/* ══ header ═══════════════════════════════════════════════════ */
+
+.hdr {
+  position: relative;
+  /* Above .fx (45), below .sheet (50). This element is a stacking context, so
+     .lang-menu's own z-index: 60 is capped at whatever the header sits at —
+     at 40 the open menu painted underneath the effects canvas. Confetti
+     passes behind the header bar instead, which costs nothing: it bursts from
+     the goal and falls, and never reaches the top of the stage. */
+  z-index: 46;
+  flex: 0 0 clamp(52px, 7cqh, 74px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 clamp(12px, 3.6cqw, 30px);
+  background: rgba(4, 4, 5, .72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+}
+
+.hdr__logo img { height: clamp(20px, 3cqh, 30px); width: auto; }
+
+.hdr__right { display: flex; align-items: center; gap: 8px; }
+
+/* 44px, which is the tap target size iOS asks for. */
+.mute,
+.lang {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 22px;
+  border: 1px solid var(--ink-600);
+  background: var(--ink-700);
+  color: var(--text);
+  font-family: var(--font);
+  font-weight: var(--fw-semi);
+  font-size: 16px;
+  transition: scale 140ms var(--ease-out);
+}
+
+.mute { width: 44px; padding: 0; justify-content: center; }
+
+.mute svg,
+.lang svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mute .mute__spk { fill: currentColor; stroke: none; }
+.mute .mute__off { display: none; }
+.mute[aria-pressed="true"] .mute__on { display: none; }
+.mute[aria-pressed="true"] .mute__off { display: block; }
+
+/* The accent outline marks this as the trigger; the label stays white rather
+   than red, because the outline already says which control it is and a red
+   label on a red outline says it twice. */
+.lang { border-color: var(--accent); color: #fff; }
+.lang__caret { width: 14px; height: 14px; }
+
+/* Press feedback. They are buttons; without this they behave like labels. The
+   logo is qualified on [href] because it only becomes one when HOME_URL is
+   filled in js/main.js — a mark that shrinks under the thumb and then does
+   nothing reads as a broken control rather than as a logo. */
+.mute:active,
+.lang:active,
+.hdr__logo[href]:active { scale: .95; }
+
+/* == language menu ============================================ */
+
+.lang-wrap { position: relative; }
+
+.lang__caret { transition: transform 180ms var(--ease-out); }
+.lang[aria-expanded="true"] .lang__caret { transform: rotate(180deg); }
+
+/* Grows out of the button it hangs from, so it reads as coming from there
+   rather than appearing over the header. reset.css forces [hidden] to
+   display:none !important, so display cannot be transitioned — the open state
+   is a class, and js/i18n.js unhides one frame ahead of it. Same two-step the
+   registration card uses. */
+.lang-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  width: 286px;
+  max-width: calc(100cqw - 24px);
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  border-radius: 14px;
+  border: 1px solid var(--ink-600);
+  background: var(--ink-700);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
+  transform-origin: top right;
+  opacity: 0;
+  transform: translateY(-6px) scale(.96);
+  pointer-events: none;
+  transition: opacity 120ms var(--ease-out), transform 120ms var(--ease-out);
+}
+
+/* Entry is slower than exit: arriving is worth watching, leaving is not. */
+.lang-menu.is-open {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  transition-duration: 180ms;
+}
+
+.lang-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 16px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: var(--fw-med);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.lang-opt + .lang-opt { border-top: 1px solid var(--ink-600); }
+
+/* Flags carry the meaning at a glance; the code and the endonym beside them
+   settle the ambiguity a flag alone would leave — English is not a country.
+   These are the MIT SVGs in assets/img/icons/; GB is the convention for EN. */
+.lang-opt__flag {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 18px;
+  border-radius: 2px;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .22);
+}
+
+.lang-opt__code {
+  flex: 0 0 32px;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.lang-opt__name { flex: 1 1 auto; color: #fff; }
+
+/* A drawn tick rather than U+2713: that codepoint is outside the latin subset
+   of the Fira Sans cut, so the glyph would arrive from a fallback. */
+.lang-opt__check {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--accent-bright);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+}
+
+.lang-opt[aria-selected="true"] { background: var(--ink-650); }
+.lang-opt[aria-selected="true"] .lang-opt__check { opacity: 1; }
+
+/* Arrow keys move focus through the list, so the focused option needs to be
+   visible even when the menu was opened by tapping. */
+.lang-opt:focus { background: rgba(255, 255, 255, .09); outline: none; }
+.lang-opt:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: -2px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .lang-opt:hover { background: rgba(255, 255, 255, .09); }
+}
+
+.hdr__logo:focus-visible,
+.mute:focus-visible,
+.lang:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
+}
+
+/* == pitch ====================================================
+
+   The whole scene is one photograph, the goal included, and everything the
+   game draws is hung off it.
+
+   assets/img/pitch-freekick.webp is shot from a free-kick position about
+   twenty-two metres out: the goal, the penalty area and the arc are all in the
+   photograph in one consistent perspective, because one camera made all of
+   them. Nothing is drawn on top of them.
+
+   Where the painted goal sits inside that photograph was measured, not
+   guessed, and the four numbers below are the measurement:
+
+       left post   .3349 of the plate's width
+       right post  .6651
+       crossbar    .2269 of its height
+       goal line   .3701
+
+   `python tools/cutout.py` prints exactly these, off the file it has just
+   written. They are not the same as the numbers off the raw render — the tool
+   adds half again as much foreground to the bottom so the grass still reaches
+   the ball on a tall phone, which moves both vertical fractions. Re-run it
+   against a new plate and paste what it prints; do not nudge these by eye. */
+.pitch {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  /* cqw and cqh below mean "of the pitch" because of this. */
+  container: pitch / size;
+
+  /* The whole scene shakes together — plate, goal, wall and keeper — because
+     the goal is part of the plate. js/fx.js writes the two variables. */
+  translate: var(--shake-x, 0px) var(--shake-y, 0px);
+
+  /* How much of the photograph is on screen. Bigger means a closer camera and
+     a bigger goal.
+
+     max(), not min(). The plate has a fixed 16:9 shape and the pitch does not,
+     so one of the two constraints always has to give: sizing it to fit the
+     pitch's height leaves black bars down both sides of a wide screen, and
+     that is what the first version did. Sizing it to cover instead means it
+     overflows — off the top on a wide pitch, off both sides on a phone — and
+     #stage clips. A photograph that runs off the frame is what a photograph
+     does; a black bar is a bug.
+
+     The cqh term is what makes a phone zoom in: at 100cqw a 390px-wide pitch
+     would render the goal about a finger across.
+
+     Deliberately uncapped. A px ceiling was tried and it is the same bug in a
+     different hat: past the ceiling the plate stops growing, stops covering,
+     and the bars come back — on the widest screens, which are the ones most
+     likely to be looked at closely. Beyond about 1920 the 1920px source is
+     being enlarged, and an enlarged night photograph is a far smaller problem
+     than two black columns. */
+  --plate-w: max(100cqw, 168cqh);
+  --plate-h: calc(var(--plate-w) * 1662 / 1920);
+
+  /* The goal, derived: .3302 is (.6651 - .3349), and .1240 is the goal's own
+     height over the plate's WIDTH — both straight off the tool's output, so
+     the aspect can never disagree with the photograph. */
+  --gw: calc(var(--plate-w) * .3302);
+  --gh: calc(var(--plate-w) * .1240);
+
+  /* Where the posts meet the grass, measured up from the bottom of the pitch.
+
+     This is the anchor, and the plate is hung off it rather than the other way
+     round: the goal is the one thing that has to stay on screen and in the
+     same place at every size, so it is the thing that gets a fixed position
+     and the photograph moves behind it. Anchoring the plate instead and
+     letting the goal fall where it may pushed the crossbar off the top of a
+     short, wide pitch. */
+  --goal-base: 44cqh;
+
+  /* The wall stands on the grass between the taker and the goal. Where it
+     stands is the only thing that decides how far away it is, and js/game.js
+     reads that back off the rendered element rather than being told — see
+     wallDepth() there. Move these and the collision moves with them.
+
+     These two numbers are a composition choice and not the photograph's own
+     perspective, which is worth saying plainly.
+
+     The plate is a long-lens shot from about twenty-two metres: fitting the
+     penalty-area line and the arc against the goal line puts the horizon at
+     .561 of the image and the whole run from six metres to the goal inside
+     three percent of its height. Placed truthfully, then, a wall standing the
+     regulation 9.15m from the ball belongs two percent of the frame below the
+     goal line and stands 1.82 goal-heights tall — which is to say it would
+     cover the goal almost completely, and there would be no game.
+
+     So the wall is brought forward and shrunk until the goal is playable.
+
+     1.12 rather than the 1.30 tried first, and the difference is the whole
+     game rather than a matter of taste. At 1.30 the men's heads finished
+     fifteen pixels under the crossbar, so no arc existed that cleared the wall
+     and still passed under the bar: every winning shot had to go round the
+     outside, including one struck dead straight, and the ball swerved for a
+     visitor who had asked it not to. At 1.12 there is a real window over the
+     top, and js/game.js takes it whenever the drag was not curled. */
+  --wall-b: calc(var(--goal-base) - var(--plate-h) * .104);
+  --wall-h: calc(var(--gh) * 1.12);
+}
+
+/* The stadium plate. Placed off --goal-base: the painted goal line is .5737
+   down the image, so the plate's bottom sits .4263 of its own height below
+   wherever that line has to be. */
+.pitch::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  bottom: calc(var(--goal-base) - var(--plate-h) * .6299);
+  width: var(--plate-w);
+  height: var(--plate-h);
+  margin-left: calc(var(--plate-w) / -2);
+  /* The vignette rides on the plate rather than on a layer of its own. On a
+     layer the size of .pitch it would stop dead at the pitch's edge and draw a
+     visible vertical seam across the grass in the landscape layout, where the
+     pitch is only the left column. On the plate it has nowhere to end that
+     anyone can see. */
+  background:
+    radial-gradient(78% 70% at 50% 44%,
+      transparent 30%, rgba(4, 4, 5, .74) 100%),
+    url("../assets/img/pitch-freekick.webp") center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+/* == goal =====================================================
+
+   Draws nothing. It is the painted goal's box, and everything the game shows
+   inside the goal — the keeper, the strike ring — is a percentage of it, so
+   all of it stays registered to the photograph at any size.
+
+   2.66:1, against a real goal's 7.32 by 2.44. A goal is 3:1 seen square on;
+   from a metre off the grass it foreshortens, and this is that. */
+.goal {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: var(--goal-base);
+  width: var(--gw);
+  height: var(--gh);
+  margin-left: calc(var(--gw) / -2);
+  /* inline-size, not size: percentages inside want the goal's width, and
+     inline-size cannot fight the height set above it. */
+  container: goal / inline-size;
+}
+
+/* ══ the wall ═════════════════════════════════════════════════
+
+   A sibling of .goal and not a child of it, because it is nearer the camera
+   than the goal is and has to draw over the keeper.
+
+   Both poses come out of tools/cutout.py on one canvas with one ground line,
+   so swapping the sprite cannot move the wall; the jump is a transform in
+   js/game.js, and the same number that lifts the sprite lifts the box the
+   trajectory is tested against. */
+.wall-zone {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  /* The sprite's canvas is taller than the men in it — cutout.py exports them
+     on the full frame with their boots on a ground line at .893 of it — so the
+     box hangs below the grass by the difference, and --wall-b stays the height
+     of the men themselves rather than of the canvas around them. */
+  bottom: calc(var(--wall-b) - var(--wall-h) * .107 / .759);
+  height: calc(var(--wall-h) / .759);
+  aspect-ratio: 824 / 460;
+  translate: -50% 0;
+  pointer-events: none;
+}
+
+.wall {
+  position: absolute;
+  left: 50%;
+  inset-block: 0;
+  width: 100%;
+  transform: translateX(-50%);
+  background: center / 100% 100% no-repeat;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, .6));
+}
+
+.wall[data-pose="idle"] { background-image: url("../assets/img/wall-idle.webp"); }
+.wall[data-pose="jump"] { background-image: url("../assets/img/wall-jump.webp"); }
+
+/* Their shadow on the grass. It stays put while they jump, which is the cue
+   that they left it. */
+.wall-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  width: 46%;
+  height: 6%;
+  margin-left: -23%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side,
+              rgba(0, 0, 0, .6), rgba(0, 0, 0, .26) 60%, transparent);
+  filter: blur(2px);
+}
+
+/* ══ impact ═══════════════════════════════════════════════════ */
+
+/* A still sprite cannot show a landing, so the ground does it instead: a plume
+   where the keeper's feet arrive. It hangs off the goal rather than off the
+   keeper, so the squash in the dive tween does not stretch it too —
+   js/animator.js hands over the landing offset, converted into this box's own
+   width by the DUST_W constant there. Keep the two in step. */
+.dust {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: -8%;
+  width: 26%;
+  aspect-ratio: 3 / 1;
+  margin-left: -13%;
+  translate: var(--dust-x, 0) 0;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(222, 236, 255, .42), transparent 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dust.is-live { animation: dust 700ms var(--ease-out) forwards; }
+
+@keyframes dust {
+  0%   { opacity: 0;  transform: scale(.3); }
+  18%  { opacity: .8; transform: scale(1); }
+  100% { opacity: 0;  transform: scale(1.9); }
+}
+
+/* Where the ball struck. A flash at the contact point and a shock ring out of
+   it, so the shot lands somewhere instead of simply stopping.
+
+   The ring is a gradient, not a border. A border is a fixed number of pixels
+   and transform: scale() shrinks it along with everything else, so at the
+   ring's brightest frame a 2px border renders under a pixel wide and cannot be
+   seen at all. A gradient ring keeps its share of the circle at every scale. */
+.hit {
+  position: absolute;
+  z-index: 4;
+  left: var(--hit-x, 50%);
+  top: var(--hit-y, 50%);
+  width: 18%;
+  aspect-ratio: 1;
+  margin: -9% 0 0 -9%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side,
+              transparent 56%,
+              rgba(255, 255, 255, .95) 72%,
+              rgba(255, 255, 255, 0) 90%);
+  filter: drop-shadow(0 0 14px rgba(255, 255, 255, .5));
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The strike itself. Bright, small and gone in a fifth of a second — it is the
+   impact, not the aftermath, and the ring behind it carries the rest. */
+.hit::after {
+  content: "";
+  position: absolute;
+  inset: 28%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side,
+              #fff, rgba(255, 255, 255, .6) 55%, transparent);
+  opacity: 0;
+}
+
+.hit.is-live { animation: hit 520ms var(--ease-out) forwards; }
+.hit.is-live::after { animation: hit-flash 200ms var(--ease-out) forwards; }
+
+@keyframes hit {
+  0%   { opacity: 0; transform: scale(.25); }
+  10%  { opacity: 1; transform: scale(.55); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+@keyframes hit-flash {
+  0%   { opacity: .95; transform: scale(.55); }
+  100% { opacity: 0;   transform: scale(1.8); }
+}
+
+/* reset.css cuts every animation to 0.01ms under reduced motion, which would
+   leave these as a one-frame flash. Better to have them not happen. */
+@media (prefers-reduced-motion: reduce) {
+  .dust,
+  .hit { display: none; }
+}
+
+/* The ball stops responding while a shot is in flight. */
+#stage[data-state="shooting"] .ball,
+#stage[data-state="celebrate"] .ball,
+#stage[data-state="form"] .ball { pointer-events: none; }
+
+/* ══ goalkeeper ═══════════════════════════════════════════════ */
+
+/* His shadow, on its own element so js/animator.js can shrink and fade it
+   while he is in the air and snap it back when he lands. A diver whose shadow
+   never changes size does not look like he left the ground, and the
+   drop-shadow filter on .keeper below cannot do this — it is welded to the
+   sprite and travels with it.
+
+   Width is SHADOW_W in js/animator.js; the two convert the dive offsets
+   between their boxes and have to agree. */
+.keeper-shadow {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: -3%;
+  width: 30%;
+  height: 8%;
+  pointer-events: none;
+  opacity: .42;
+  transform: translateX(-50%);
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+  background: radial-gradient(closest-side,
+              rgba(0, 0, 0, .66), rgba(0, 0, 0, .30) 58%, transparent);
+  filter: blur(1px);
+}
+
+/* Every pose sprite shares one 1147x640 canvas, one camera and one ground
+   line — tools/cutout.py guarantees all three — so this is a fixed box and
+   changing pose only swaps the background image.
+
+   The numbers are derived, not tuned. On the exported canvas the standing
+   figure runs from y .256 to .766, so he is .510 of the box tall. A 1.88m
+   keeper against a 2.44m goal is .770 of the goal's height, which makes the
+   box .770 / .510 = 151% of it; the canvas is 1147/640 wide, so the box is
+   151% * (1147/640) / 2.66 = 102% of the goal's WIDTH. That 1.02 is KEEPER_W
+   in js/animator.js, and the dive offsets are percentages of it — the two
+   files have to agree or every dive lands in the wrong place.
+
+   His feet are at .766 of the box, so the box hangs (.766 - 1) of its own
+   height below the goal line to stand him on it: -23.4% of 151% of the goal's
+   height, which is -35.3% of the goal's height. */
+.keeper {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: -35.4%;
+  width: 102%;
+  height: 151%;
+  /* No margin-left to go with the left: 50%. The centring is the
+     translateX(-50%) below, and js/animator.js rewrites that transform on
+     every frame of a dive with the same -50% in front of the travel — a
+     margin as well would centre the keeper twice and stand him half a goal to
+     the left of where he belongs. */
+  pointer-events: none;
+  transform: translateX(-50%);
+  transform-origin: 50% 100%;
+  will-change: transform;
+  background: center / 100% 100% no-repeat;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .55));
+}
+
+.keeper[data-pose="idle"]             { background-image: url("../assets/img/keeper-idle.webp"); }
+.keeper[data-pose="jump_L1"]          { background-image: url("../assets/img/keeper-jump_L1.webp"); }
+.keeper[data-pose="jump_L2"]          { background-image: url("../assets/img/keeper-jump_L2.webp"); }
+.keeper[data-pose="jump_R1"]          { background-image: url("../assets/img/keeper-jump_R1.webp"); }
+.keeper[data-pose="jump_R2"]          { background-image: url("../assets/img/keeper-jump_R2.webp"); }
+.keeper[data-pose="jump_center"]      { background-image: url("../assets/img/keeper-jump_center.webp"); }
+.keeper[data-pose="jump_center_down"] { background-image: url("../assets/img/keeper-jump_center_down.webp"); }
+.keeper[data-pose="ready"]            { background-image: url("../assets/img/keeper-ready.webp"); }
+.keeper[data-pose="cheer"]            { background-image: url("../assets/img/keeper-cheer.webp"); }
+.keeper[data-pose="beaten"]           { background-image: url("../assets/img/keeper-beaten.webp"); }
+
+/* Idle breathing. The class is removed while a dive plays, so the scripted
+   animation in animator.js is never fighting these keyframes. */
+.keeper.is-idling { animation: keeper-idle 2.4s ease-in-out infinite; }
+
+@keyframes keeper-idle {
+  0%, 100% { transform: translateX(-50%) translateY(0)     scaleY(1);     }
+  50%      { transform: translateX(-50%) translateY(-1.2%) scaleY(1.012); }
+}
+
+/* ══ ball ═════════════════════════════════════════════════════ */
+
+.ball-zone {
+  position: relative;
+  flex: 0 0 clamp(112px, 19cqh, 220px);
+  container: ballzone / size;
+  --ball: min(21cqw, 52cqh, 104px);
+  --ball-top: 14%;
+}
+
+/* Dragged to aim, and a real button so it is reachable by keyboard and
+   announced: Enter and Space fire the random shot js/aim.js provides.
+
+   touch-action: none, not manipulation. The drag is read from pointer events,
+   and without this the browser claims the gesture for a pan first and the
+   pointermove stream stops halfway through the swipe — on a page that cannot
+   scroll, and so has nothing to pan. */
+.ball {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  top: var(--ball-top);
+  width: var(--ball);
+  height: var(--ball);
+  margin-left: calc(var(--ball) / -2);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  touch-action: none;
+  cursor: grab;
+  will-change: transform;
+  background: url("../assets/img/ball.webp") center / 100% 100% no-repeat;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .55)) drop-shadow(0 0 16px rgba(210, 21, 2, .40));
+  transition: filter .18s ease, scale 140ms var(--ease-out);
+}
+
+/* `scale` rather than `transform`: the idle bob owns the transform, and a
+   press the bob overwrites is a press that never happened. */
+.ball:active { scale: .95; }
+.ball.is-aiming { cursor: grabbing; scale: .92; }
+
+@media (hover: hover) {
+  .ball:hover {
+    filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .55)) drop-shadow(0 0 26px rgba(255, 69, 58, .8));
+  }
+}
+
+.ball:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 4px;
+}
+
+.ball-zone::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: calc(var(--ball-top) + var(--ball));
+  width: calc(var(--ball) * .875);
+  height: calc(var(--ball) * .146);
+  margin-left: calc(var(--ball) * -.4375);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, .55), transparent);
+  filter: blur(2px);
+  transition: opacity .16s ease;
+}
+
+/* This one belongs to the ball standing on the spot. The moment a shot is
+   taken js/fx.js draws a shadow that travels with the ball, so this has to
+   clear out or there would be two of them. */
+#stage[data-state="shooting"] .ball-zone::after,
+#stage[data-state="celebrate"] .ball-zone::after,
+#stage[data-state="form"] .ball-zone::after { opacity: 0; }
+
+/* A nudge that reads as "this is the thing to touch". Class-gated so the
+   scripted flight in game.js is never fighting these keyframes. */
+.ball.is-bobbing { animation: ball-bob 2s ease-in-out infinite; }
+
+@keyframes ball-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7.3%); }
+}
+
+/* The one instruction the game needs, because a drag is not discoverable the
+   way a button is. It goes once the visitor has taken a shot: by then they
+   either know or the hint was not going to help. */
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  width: min(84cqw, 460px);
+  /* Half the width above, negated. Writing it as min(-42cqw, -230px) looks
+     like the same thing and is not: min() of two negatives takes the more
+     negative, so on a narrow phone it picked -230 against a 164px-wide box
+     and pushed the hint off the left of the screen. */
+  margin-left: calc(min(84cqw, 460px) / -2);
+  color: var(--text-muted);
+  font-size: clamp(11px, 3.2cqw, 14px);
+  line-height: 1.3;
+  text-align: center;
+  text-wrap: balance;
+  transition: opacity .3s ease;
+}
+
+#stage:not([data-state="idle"]) .hint { opacity: 0; }
+
+/* Landscape puts the ball on the pitch itself rather than in the side column
+   (css/stage.css says why), and the zone it is measured against is then a
+   short, wide band instead of a tall one. Left alone, the same fractions drew
+   a ball nearly half the width of the goal sitting level with the wall. Here
+   it is smaller and further down the grass, which is where a ball twenty-odd
+   metres in front of the goal belongs. */
+@container viewport (min-aspect-ratio: 1 / 1) and (max-height: 640px) {
+  .ball-zone {
+    --ball: min(15cqw, 34cqh, 84px);
+    --ball-top: 40%;
+  }
+
+  .hint { bottom: 2%; }
+}
+
+/* ══ call to action ═══════════════════════════════════════════ */
+
+/* Sits directly under the header, over the night sky. */
+.tagline {
+  position: relative;
+  z-index: 10;
+  flex: 0 0 auto;
+  container: tagline / inline-size;
+  display: grid;
+  place-items: center;
+  padding: clamp(10px, 2cqh, 26px) clamp(16px, 5cqw, 40px) clamp(8px, 1.6cqh, 22px);
+  text-align: center;
+}
+
+/* Scrim fading down into the sky, so the headline never fights the
+   floodlights. */
+.tagline::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 -34px;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(4, 4, 5, .9), rgba(4, 4, 5, .58) 62%, transparent);
+}
+
+.tagline__text {
+  font-family: var(--font-display);
+  font-weight: var(--fw-xbold);
+  font-size: clamp(19px, 7.4cqw, 44px);
+  line-height: 1.05;
+  letter-spacing: -.01em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #ffffff 46%, var(--red-400));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 10px rgba(210, 21, 2, .38));
+}
+
+/* The gradient above is painted through the glyphs, so the text colour has to
+   be transparent for any of it to show. In forced-colors the background is
+   dropped — the whole point of the mode is that the user's own colours win —
+   and a transparent colour with nothing behind it is an invisible headline.
+   Hand the glyphs back a real colour, and take the scrim and the glow with it:
+   both are decoration this mode has already discarded. */
+@media (forced-colors: active) {
+  .tagline__text {
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: CanvasText;
+    filter: none;
+  }
+  .tagline::before { display: none; }
+}
+
+/* ══ the effects canvas ═══════════════════════════════════════
+
+   Carries the ball in flight, the ball's travelling shadow, its motion blur,
+   the aim arc, the net taking the shot and the confetti — everything js/fx.js
+   draws. Deliberately NOT hidden under prefers-reduced-motion the way .dust
+   and .hit are: the ball itself lives here, so hiding it would leave nothing
+   to watch. fx.js cuts the motion instead, at source. */
+
+.fx {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+
+.fx.is-live { opacity: 1; }
+
+/* ══ transient message ════════════════════════════════════════
+
+   On the grass in front of the goal, the way a broadcast caption sits.
+   Placed against the goal line rather than at a percentage of the stage:
+   --goal-base is where the posts meet the grass and --gw scales the offset
+   with the goal, so the caption keeps the same distance in front of it at
+   every size. It lives inside .pitch for exactly that reason — outside it,
+   neither custom property exists. */
+.msg {
+  position: absolute;
+  z-index: 30;
+  left: 50%;
+  bottom: calc(var(--goal-base) - var(--gw) * .17);
+  transform: translate(-50%, 0) scale(.9);
+  max-width: min(88cqw, 520px);
+  padding: 11px 22px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--accent);
+  background: rgba(10, 11, 14, .78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--glow-red);
+  font-family: var(--font-display);
+  font-weight: var(--fw-xbold);
+  font-size: clamp(14px, 4.4cqw, 24px);
+  text-transform: uppercase;
+  text-align: center;
+  text-wrap: balance;
+  opacity: 0;
+  transition: opacity .25s ease, transform .25s ease;
+}
+
+.msg.is-visible { opacity: 1; transform: translate(-50%, 0) scale(1); }
+
+/* Landscape has no grass in front of the goal to sit on, so the caption goes
+   to the foot of the pitch column instead, where it overlaps the near grass
+   rather than falling out of the pitch and being clipped. Same query as the
+   layout switch in css/stage.css. */
+@container viewport (min-aspect-ratio: 1 / 1) and (max-height: 640px) {
+  .msg { bottom: 3%; }
+}

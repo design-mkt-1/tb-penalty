@@ -1,0 +1,49 @@
+name: Deploy to GitHub Pages
+
+# The Pages source for this repo is "GitHub Actions", so a workflow has to
+# publish the site — with no workflow the site is enabled but serves 404.
+# Only the files the page actually needs are uploaded; tools/ and docs/ are
+# for whoever is working on it, not for whoever is looking at it.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage the served files
+        run: |
+          mkdir -p _site
+          cp -r index.html .nojekyll css js assets _site/
+          du -sh _site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

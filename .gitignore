@@ -1,0 +1,10 @@
+Thumbs.db
+.DS_Store
+*.log
+__pycache__/
+
+# The source renders tools/cutout.py eats. fs-penalty committed its raw/ and
+# then had to note in the README that a public repo serves every byte of it
+# anyway; there is nothing to gain by shipping 40 MB of PNG a visitor can
+# already reconstruct from the WebP. Keep them locally, out of the tree.
+raw/

@@ -1,0 +1,96 @@
+/* Fluid, zero-scroll shell.
+
+   This used to be a fixed 390x844 canvas that stage.js shrank with a
+   transform, which meant a phone-sized sliver in the middle of a desktop and
+   something unreadable in landscape. The stage now simply is the viewport,
+   and everything inside sizes itself against it with container query units.
+
+   The one rule that did not change: the page never scrolls. */
+
+html, body {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--ink-950);
+  color: var(--text);
+  font-family: var(--font);
+  touch-action: manipulation;
+}
+
+/* A container as well as a box, so the two shape decisions below can be
+   asked of the space the stage actually gets rather than of the window --
+   on a notched phone in landscape those differ by the safe-area inset. A
+   container query can style its container's children, which is why #stage
+   itself can be reshaped from here. */
+#viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  padding:
+    env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  container: viewport / size;
+}
+
+/* container-type: size is what makes cqw and cqh inside the stage mean "of
+   the stage" rather than "of the window" -- so the safe-area padding above
+   is already subtracted by the time anything measures itself. */
+#stage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ink-900);
+  isolation: isolate;
+  container: stage / size;
+}
+
+/* Landscape and anything short and wide: the portrait column does not fit, so
+   the goal takes the left and the words take the right. Below this height a
+   stacked layout leaves the goal a few dozen pixels.
+
+   The ball stays ON the pitch rather than moving into the side column with
+   the words. It was in the column at first, and the arithmetic is what says
+   why that was wrong: the ball ended up beside the goal and level with it, so
+   the flight js/fx.js draws — which recedes from the ball towards the goal —
+   was a nearly horizontal shot travelling sideways across the screen, with a
+   shadow that had thirty pixels of ground to cross. Overlaying the ball on the
+   pitch's own foreground costs one grid area and gives the same receding
+   flight the portrait layout has. */
+@container viewport (min-aspect-ratio: 1 / 1) and (max-height: 640px) {
+  #stage {
+    display: grid;
+    grid-template-columns: 1fr minmax(150px, 36%);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "hdr     hdr"
+      "pitch   tagline";
+  }
+
+  .hdr     { grid-area: hdr; }
+  .pitch   { grid-area: pitch; }
+  .tagline { grid-area: tagline; align-self: center; }
+
+  /* Same cell as the pitch, pinned to the bottom of it. Grid lets two items
+     share an area, which is all this needs. */
+  .ball-zone {
+    grid-area: pitch;
+    align-self: end;
+    height: 46%;
+    z-index: 20;
+    /* The zone is only a box to measure the ball against; letting it swallow
+       pointer events would put a dead rectangle over the lower third of the
+       pitch. */
+    pointer-events: none;
+  }
+
+  .ball { pointer-events: auto; }
+
+  /* The side column is a third of the width; the portrait padding would eat
+     most of it. */
+  .tagline { padding: clamp(8px, 2cqh, 18px) clamp(10px, 1.6cqw, 22px); }
+}

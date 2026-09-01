@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#040405">
+<title data-i18n="title">TopBet — Curl it past the wall and win!</title>
+
+<!-- The LCP image and the two latin faces are all discovered late: the plate
+     only after css/game.css parses, the fonts only after that stylesheet is
+     applied to text. Named here, they start with the stylesheets instead. The
+     other four woff2 are unicode-range subsets for UZ/RU and stay deferred. -->
+<link rel="preload" as="image" type="image/webp" href="assets/img/pitch-freekick.webp">
+<link rel="preload" as="font" type="font/woff2" href="assets/fonts/fira-sans-800-latin.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="assets/fonts/roboto-latin.woff2" crossorigin>
+
+<link rel="icon" href="assets/img/icons/favicon.svg" type="image/svg+xml">
+
+<link rel="stylesheet" href="css/reset.css">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/stage.css">
+<link rel="stylesheet" href="css/game.css">
+<link rel="stylesheet" href="css/form.css">
+</head>
+<body>
+
+<div id="viewport">
+  <div id="stage" data-state="idle">
+
+    <!-- ── header ─────────────────────────────────────────────── -->
+    <header class="hdr">
+      <!-- No href on purpose: HOME_URL in js/main.js puts one here when the
+           client supplies it. aria-label is inert until then and live after. -->
+      <a class="hdr__logo" aria-label="TopBet">
+        <img src="assets/img/logo-topbet.svg" alt="TopBet" width="120" height="27">
+      </a>
+      <div class="hdr__right">
+        <button class="mute" type="button" aria-pressed="false"
+                data-i18n-attr="aria-label:hdr.sound">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path class="mute__spk" d="M4 9v6h4l5 4V5L8 9H4z"/>
+            <path class="mute__on" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>
+            <path class="mute__off" d="M16.5 9.5l5 5m0-5l-5 5"/>
+          </svg>
+        </button>
+        <div class="lang-wrap">
+          <button class="lang" type="button" id="tb-lang-btn"
+                  aria-haspopup="listbox" aria-expanded="false"
+                  data-i18n-attr="aria-label:hdr.lang">
+            <svg class="lang__globe" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/>
+            </svg>
+            <span class="lang__code">EN</span>
+            <!-- Points down when the menu is shut. -->
+            <svg class="lang__caret" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <ul class="lang-menu" role="listbox" aria-labelledby="tb-lang-btn" hidden>
+            <li class="lang-opt" role="option" data-lang="uz" tabindex="-1">
+              <img class="lang-opt__flag" src="assets/img/icons/flag-uz.svg" alt="" width="24" height="18">
+              <span class="lang-opt__code">UZ</span>
+              <span class="lang-opt__name"></span>
+              <svg class="lang-opt__check" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>
+            </li>
+            <li class="lang-opt" role="option" data-lang="ru" tabindex="-1">
+              <img class="lang-opt__flag" src="assets/img/icons/flag-ru.svg" alt="" width="24" height="18">
+              <span class="lang-opt__code">RU</span>
+              <span class="lang-opt__name"></span>
+              <svg class="lang-opt__check" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>
+            </li>
+            <li class="lang-opt" role="option" data-lang="en" tabindex="-1" aria-selected="true">
+              <img class="lang-opt__flag" src="assets/img/icons/flag-gb.svg" alt="" width="24" height="18">
+              <span class="lang-opt__code">EN</span>
+              <span class="lang-opt__name"></span>
+              <svg class="lang-opt__check" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── call to action ─────────────────────────────────────── -->
+    <div class="tagline">
+      <p class="tagline__text" data-i18n="tagline">Curl it past the wall<br>and win!</p>
+    </div>
+
+    <!-- ── pitch ──────────────────────────────────────────────── -->
+    <div class="pitch">
+      <!-- The goal is painted into the stadium plate, so this element draws
+           nothing: it is the geometry the aim, the keeper and the effects are
+           hung on, sized and placed to land exactly on the painted posts.
+           See the numbers in css/game.css. -->
+      <div class="goal">
+        <div class="dust" aria-hidden="true"></div>
+        <div class="keeper-shadow" aria-hidden="true"></div>
+        <div class="keeper" data-pose="idle" role="presentation"></div>
+        <div class="hit" aria-hidden="true"></div>
+      </div>
+
+      <!-- The wall stands between the taker and the goal, so it is a sibling
+           of .goal rather than a child of it: it is nearer the camera and
+           has to draw over the keeper. Its depth along the flight is
+           --wall-t in css/game.css, and js/game.js reads that number to
+           decide whether a shot has cleared it. -->
+      <div class="wall-zone" aria-hidden="true">
+        <div class="wall-shadow"></div>
+        <div class="wall" data-pose="idle"></div>
+      </div>
+
+      <!-- ── transient message ────────────────────────────────── -->
+      <!-- Inside the pitch, not the stage: it is placed against the goal
+           line, and only in here does --goal-base mean anything. -->
+      <p class="msg" role="status" aria-live="polite" hidden></p>
+    </div>
+
+    <!-- ── ball ───────────────────────────────────────────────── -->
+    <div class="ball-zone">
+      <button class="ball" type="button" data-i18n-attr="aria-label:ball.shoot"></button>
+      <p class="hint" data-i18n="hint.swipe">Drag back from the ball, curve your swipe to bend it</p>
+    </div>
+
+    <!-- ── ball in flight, aim preview, net and confetti ──────── -->
+    <canvas class="fx" aria-hidden="true"></canvas>
+
+    <!-- ── registration overlay ───────────────────────────────── -->
+    <!-- Figma mAJyDSaXdr9GO72b7FGvI8 · page TopBet · Registration Form 3:2176
+         Device=Mobile|Desktop, Tab=Phone|Email,
+         State=Default|Default number|Default code|Error|Bonus Open|Success -->
+    <div class="sheet" hidden aria-hidden="true">
+      <form class="card" role="dialog" aria-modal="true" aria-labelledby="promo-title"
+            tabindex="-1" novalidate>
+
+        <div class="card__step" data-step="form">
+          <header class="promo" id="promo-title">
+            <div class="promo__row">
+              <span class="promo__pct">200%</span>
+              <span class="promo__stack"><span data-i18n="promo.sport">sport</span><span data-i18n="promo.bonus">bonus</span></span>
+            </div>
+            <!-- (AMOUNT) is the campaign placeholder the design ships with. -->
+            <p class="promo__sub" data-i18n="promo.sub">or up to (AMOUNT) + 150 FS</p>
+          </header>
+
+          <div class="plate">
+            <div class="tabs" role="tablist" data-i18n-attr="aria-label:tabs.label">
+              <button class="tab is-active" type="button" role="tab" data-tab="phone"
+                      aria-selected="true" data-i18n="tab.phone">Phone Number</button>
+              <button class="tab" type="button" role="tab" data-tab="email"
+                      aria-selected="false" data-i18n="tab.email">Email Address</button>
+            </div>
+
+            <div class="fields">
+              <div class="field" data-for="phone">
+                <div class="input input--phone">
+                  <button class="country" type="button" aria-haspopup="listbox"
+                          aria-expanded="false" id="tb-country-btn"
+                          data-i18n-attr="aria-label:field.country">
+                    <img class="country__flag" src="assets/img/icons/flag-uz.svg" alt="" width="22" height="16">
+                    <span class="country__dial">+998</span>
+                    <img class="country__caret" src="assets/img/icons/chevron-sm.svg" alt="" width="14" height="9">
+                  </button>
+                  <input id="tb-phone" type="tel" inputmode="tel" autocomplete="tel"
+                         data-i18n-attr="placeholder:field.phone" aria-describedby="tb-phone-err">
+                </div>
+                <ul class="country-menu" role="listbox" aria-labelledby="tb-country-btn" hidden></ul>
+                <p class="err" id="tb-phone-err" data-i18n="err.phone" hidden>Invalid phone number</p>
+              </div>
+
+              <div class="field" data-for="email" hidden>
+                <div class="input">
+                  <input id="tb-email" type="email" inputmode="email" autocomplete="email"
+                         data-i18n-attr="placeholder:field.email" aria-describedby="tb-email-err">
+                </div>
+                <p class="err" id="tb-email-err" data-i18n="err.email" hidden>Invalid email address</p>
+              </div>
+
+              <!-- The SMS step. Figma "Device=Mobile, Tab=Phone, State=Default code".
+                   Six single-character inputs rather than one six-character
+                   field: that is what the design draws, and it is what a
+                   phone's numeric keypad handles best. -->
+              <div class="field field--code" data-for="code" hidden>
+                <!-- Two nodes, not one with the number inlined: i18n replaces
+                     a translated node's whole contents, so a <b> inside it
+                     would be wiped on the first language change. -->
+                <p class="code__lede">
+                  <span data-i18n="code.lede">Enter the 6-digit code we sent by SMS to</span>
+                  <b class="code__to"></b>
+                </p>
+                <div class="code" role="group" data-i18n-attr="aria-label:code.label">
+                  <input class="code__box" type="text" inputmode="numeric" autocomplete="one-time-code"
+                         maxlength="1" pattern="[0-9]*" aria-describedby="tb-code-err">
+                  <input class="code__box" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]*">
+                  <input class="code__box" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]*">
+                  <input class="code__box" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]*">
+                  <input class="code__box" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]*">
+                  <input class="code__box" type="text" inputmode="numeric" maxlength="1" pattern="[0-9]*">
+                </div>
+                <div class="code__row">
+                  <span class="code__timer">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+                    </svg>
+                    <span data-i18n="code.again">Resend in</span> <b class="code__left">59</b><span data-i18n="code.seconds">s</span>
+                  </span>
+                  <button class="code__resend" type="button" data-i18n="code.resend" disabled>Resend</button>
+                </div>
+                <p class="err" id="tb-code-err" data-i18n="err.code" hidden>Wrong code</p>
+              </div>
+            </div>
+
+            <!-- The bonus picker. A button plus a listbox rather than a
+                 <select>: the design's open state is two rows of title,
+                 description and radio, which no native option can carry. -->
+            <div class="bonus">
+              <span class="bonus__label" id="tb-bonus-label" data-i18n="field.bonus">Choose Welcome Bonus</span>
+              <button class="bonus__toggle" type="button" id="tb-bonus-btn"
+                      aria-haspopup="listbox" aria-expanded="false" aria-labelledby="tb-bonus-label tb-bonus-btn">
+                <span class="bonus__value" data-i18n="bonus.sport.title">🎰 Sport Bonus (100% Freebet)</span>
+                <img class="bonus__caret" src="assets/img/icons/chevron-sm.svg" alt="" width="14" height="9">
+              </button>
+              <ul class="bonus__menu" role="listbox" aria-labelledby="tb-bonus-label" hidden>
+                <!-- The values are what js/form.js reads and they are stable
+                     across locales. Reading the row's text instead would make
+                     the answer "Sport Bonus" in English and "Спорт бонус" in
+                     Russian for the same choice. -->
+                <li class="bonus__opt is-picked" role="option" data-value="sport" aria-selected="true" tabindex="-1">
+                  <span class="bonus__opt-text">
+                    <b data-i18n="bonus.sport.title">🎰 Sport Bonus (100% Freebet)</b>
+                    <i data-i18n="bonus.sport.sub">Get up to 1 000 000 UZS on sport bets</i>
+                  </span>
+                  <span class="bonus__radio" aria-hidden="true"></span>
+                </li>
+                <li class="bonus__opt" role="option" data-value="casino" aria-selected="false" tabindex="-1">
+                  <span class="bonus__opt-text">
+                    <b data-i18n="bonus.casino.title">⚽ Casino Bonus (120% + 250 FS)</b>
+                    <i data-i18n="bonus.casino.sub">Get free spins and big multipliers</i>
+                  </span>
+                  <span class="bonus__radio" aria-hidden="true"></span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- No href on either link on purpose: TERMS_URL and PRIVACY_URL
+                 in js/main.js. See the logo. -->
+            <p class="terms">
+              <span data-i18n="terms.lede">By tapping Create Account, you agree to our</span>
+              <a class="terms__tos" data-i18n="terms.tos">Terms of Service</a>
+              <span data-i18n="terms.and">&amp;</span>
+              <a class="terms__privacy" data-i18n="terms.privacy">Privacy Policy</a><span data-i18n="terms.age">. Must be 21+.</span>
+            </p>
+
+            <div class="actions">
+              <button class="cta" type="submit" data-i18n="cta.create">Create Account</button>
+              <!-- No href on purpose: LOGIN_URL in js/main.js. -->
+              <p class="foot"><span data-i18n="foot.have">Already have an account?</span> <a data-i18n="foot.login">Log in</a></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card__step" data-step="done" hidden>
+          <img class="done__logo" src="assets/img/logo-topbet.svg" alt="TopBet" width="140" height="31">
+          <span class="done__tick" aria-hidden="true">
+            <svg viewBox="0 0 64 64" focusable="false">
+              <path d="M18 33.5L27.5 43L46 21"/>
+            </svg>
+          </span>
+          <div class="done__head">
+            <h2 class="done__title" id="done-title" data-i18n="done.title">Registration Successful!</h2>
+            <p class="done__sub" data-i18n="done.sub">Your account has been successfully created.</p>
+          </div>
+          <dl class="done__box">
+            <!-- js/form.js swaps the KEY, not the text, when the visitor
+                 signed up by email, so a later language change re-renders the
+                 right label rather than the English one. -->
+            <dt class="done__key" data-i18n="done.phone">Phone</dt>
+            <dd class="done__id"></dd>
+            <dt class="done__key" data-i18n="done.password">Password</dt>
+            <dd class="done__pw">••••••••</dd>
+          </dl>
+          <button class="cta" type="button" data-action="close" data-i18n="cta.website">Go to website</button>
+        </div>
+
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<!-- defer, not sync: parser-blocking script for a page whose first paint
+     needs none of it. defer keeps this execution order and still runs
+     everything before DOMContentLoaded, which is the event main.js waits on. -->
+<script defer src="js/stage.js"></script>
+<script defer src="js/audio.js"></script>
+<script defer src="js/animator.js"></script>
+<script defer src="js/fx.js"></script>
+<script defer src="js/aim.js"></script>
+<script defer src="js/i18n.js"></script>
+<script defer src="js/game.js"></script>
+<script defer src="js/form.js"></script>
+<script defer src="js/main.js"></script>
+</body>
+</html>

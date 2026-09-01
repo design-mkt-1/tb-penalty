@@ -1,0 +1,597 @@
+/* The registration card.
+
+   Figma mAJyDSaXdr9GO72b7FGvI8, page TopBet, Registration Form 3:2176. Every
+   size, colour and radius below was read off that component set rather than
+   chosen; where one is not from there it says so.
+
+   Type sizes are in cqw of the card, not px. The design is drawn at 350 wide
+   on mobile and 500 on desktop, and the same layout at two fixed sizes is two
+   layouts to maintain — expressed as a share of the card, it is one, and the
+   card can also shrink on a 320px phone without the promo header wrapping. */
+
+/* ══ the overlay ══════════════════════════════════════════════ */
+
+.sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: clamp(10px, 3cqw, 28px);
+  /* The pitch stays visible behind it: the card's own plate is translucent,
+     and dimming to black would throw away the thing the visitor just did. */
+  background: rgba(4, 4, 5, .62);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity .28s var(--ease-out);
+  /* The card scrolls INSIDE this when the soft keyboard shrinks the visual
+     viewport. The page itself must never scroll; js/stage.js re-runs the fit
+     on visualViewport.resize and this is what absorbs the difference. */
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.sheet.is-open { opacity: 1; }
+
+.card {
+  container: card / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 3.43cqw;                 /* 12 of 350 */
+  width: min(350px, 100%);
+  margin: auto;
+  padding-top: 2.29cqw;
+  border-radius: var(--r-xl);
+  transform: translateY(14px) scale(.97);
+  transition: transform .28s var(--ease-out);
+}
+
+.sheet.is-open .card { transform: none; }
+.card:focus { outline: none; }
+
+/* ══ promo header ═════════════════════════════════════════════ */
+
+/* Outside the translucent plate, over the pitch, exactly as the design has
+   it: the offer is the loudest thing on the screen and a panel behind it
+   would quiet it down. */
+.promo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  text-transform: uppercase;
+  font-family: var(--font-display);
+}
+
+.promo__row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.22cqw;
+  color: #fff;
+}
+
+/* 80px at 350 wide. The glow is measured off Figma 3:2391 and expressed in em
+   in tokens.css so it scales with the type instead of drifting off it. */
+.promo__pct {
+  font-size: 22.86cqw;
+  font-weight: var(--fw-xbold);
+  line-height: .95;
+  letter-spacing: -.02em;
+  text-shadow: var(--promo-shadow);
+}
+
+.promo__stack {
+  display: flex;
+  flex-direction: column;
+  gap: .3cqw;
+  font-size: 9.14cqw;           /* 32 of 350 */
+  font-weight: var(--fw-xbold);
+  line-height: 1.02;
+  text-align: left;
+}
+
+.promo__sub {
+  margin-top: .8cqw;
+  color: var(--accent);
+  font-size: 5.71cqw;           /* 20 of 350 */
+  font-weight: var(--fw-bold);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+/* ══ the plate ════════════════════════════════════════════════ */
+
+.plate {
+  display: flex;
+  flex-direction: column;
+  gap: 3.43cqw;
+  padding: 2.29cqw 2.29cqw 6cqw;
+  border-radius: var(--r-md);
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur));
+  -webkit-backdrop-filter: blur(var(--card-blur));
+}
+
+/* ══ tabs ═════════════════════════════════════════════════════ */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 1px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.tab {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 42px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 4cqw;              /* 14 of 350 */
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color .16s ease, color .16s ease, border-color .16s ease;
+}
+
+.tab.is-active {
+  border-color: var(--border);
+  background: var(--surface-raised);
+  color: var(--accent-bright);
+}
+
+.tab:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: -2px; }
+
+/* ══ fields ═══════════════════════════════════════════════════ */
+
+.fields { display: flex; flex-direction: column; gap: 3.43cqw; }
+
+.field { position: relative; display: flex; flex-direction: column; gap: 1.7cqw; }
+
+.input {
+  display: flex;
+  align-items: center;
+  gap: 3.43cqw;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+
+.input:focus-within {
+  border-color: var(--accent-bright);
+  box-shadow: 0 0 0 3px rgba(255, 69, 58, .16);
+}
+
+.input--phone { padding-left: 12px; }
+
+.input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 4.29cqw;           /* 15 of 350 */
+  /* 16px on a phone regardless of the fluid size above: iOS zooms the page
+     into any field whose text is smaller, and a page that cannot scroll comes
+     back from that zoom stuck. */
+  font-size: max(16px, 4.29cqw);
+}
+
+.input input::placeholder { color: var(--text-muted); }
+.input input:focus { outline: none; }
+
+/* The country trigger, and the hairline that separates it from the number —
+   a real border on the button, as the design draws it, not a pseudo-element:
+   it has to move with the dial code when +998 becomes +7. */
+.country {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px 0 0;
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 4.29cqw;
+  font-weight: var(--fw-semi);
+}
+
+.country__flag { width: 22px; height: 16px; border-radius: 2px; object-fit: cover; }
+.country__caret { width: 14px; height: 9px; opacity: .7; transition: transform .18s var(--ease-out); }
+.country[aria-expanded="true"] .country__caret { transform: rotate(180deg); }
+.country:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
+
+/* ══ the two listboxes ════════════════════════════════════════
+
+   Same control twice — see js/form.js. They differ only in where they hang
+   and what a row holds. */
+
+.country-menu,
+.bonus__menu {
+  list-style: none;
+  padding: 8px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity .14s var(--ease-out), transform .14s var(--ease-out);
+}
+
+.country-menu.is-open,
+.bonus__menu.is-open { opacity: 1; transform: none; }
+
+/* The country list floats over the card; the bonus list pushes the rest of the
+   card down, which is what the design's "Bonus Open" state shows. */
+.country-menu {
+  position: absolute;
+  z-index: 3;
+  top: calc(44px + 6px);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .55);
+}
+
+.country-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-size: 4cqw;
+  cursor: pointer;
+}
+
+.country-opt img { width: 22px; height: 16px; border-radius: 2px; object-fit: cover; }
+.country-opt__name { flex: 1 1 auto; }
+.country-opt__dial { color: var(--text-muted); }
+.country-opt[aria-selected="true"] { background: var(--pick-bg); }
+.country-opt:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: -2px; }
+
+@media (hover: hover) {
+  .country-opt:hover,
+  .bonus__opt:hover { background: var(--pick-bg); }
+}
+
+/* ══ bonus picker ═════════════════════════════════════════════ */
+
+.bonus { display: flex; flex-direction: column; gap: 2.29cqw; }
+
+.bonus__label {
+  color: var(--text-muted);
+  font-size: 3.71cqw;           /* 13 of 350 */
+  font-weight: var(--fw-semi);
+}
+
+.bonus__toggle {
+  display: flex;
+  align-items: center;
+  gap: 3.43cqw;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 4cqw;
+  font-weight: var(--fw-med);
+  text-align: left;
+}
+
+.bonus__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bonus__caret { flex: 0 0 auto; width: 14px; height: 9px; opacity: .7; transition: transform .18s var(--ease-out); }
+.bonus__toggle[aria-expanded="true"] .bonus__caret { transform: rotate(180deg); }
+.bonus__toggle:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
+
+.bonus__menu { display: flex; flex-direction: column; gap: 4px; }
+
+.bonus__opt {
+  display: flex;
+  align-items: center;
+  gap: 3.43cqw;
+  padding: 12px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+
+.bonus__opt.is-picked { background: var(--pick-bg); }
+.bonus__opt:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: -2px; }
+
+.bonus__opt-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bonus__opt-text b { color: var(--text); font-size: 4cqw; font-weight: var(--fw-semi); }
+.bonus__opt-text i { color: var(--text-muted); font-size: 3.43cqw; font-style: normal; }
+
+/* The radio, drawn rather than an <input>: it is decoration on a listbox row
+   that already carries aria-selected, so a second, conflicting control would
+   be announced twice and mean the same thing. aria-hidden in the markup. */
+.bonus__radio {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--text-muted);
+  transition: border-color .16s ease;
+}
+
+.bonus__opt.is-picked .bonus__radio {
+  border-color: var(--accent-bright);
+  background: radial-gradient(closest-side, var(--accent-bright) 58%, transparent 60%);
+}
+
+/* ══ the SMS step ═════════════════════════════════════════════ */
+
+.field--code { gap: 2.86cqw; }
+
+.code__lede {
+  color: var(--text-muted);
+  font-size: 3.71cqw;
+  line-height: 1.4;
+}
+
+.code__to { color: var(--ok); font-weight: var(--fw-bold); white-space: nowrap; }
+
+.code { display: flex; gap: 2.29cqw; }
+
+.code__box {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 46px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: max(16px, 5.4cqw);
+  font-weight: var(--fw-bold);
+  text-align: center;
+}
+
+.code__box:focus {
+  outline: none;
+  border-color: var(--ok);
+  box-shadow: 0 0 0 3px rgba(50, 215, 75, .18);
+}
+
+.code__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 3.43cqw;
+}
+
+.code__timer { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); }
+
+.code__timer svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.code__resend {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ok);
+  font-family: var(--font);
+  font-size: inherit;
+  font-weight: var(--fw-semi);
+  text-decoration: underline;
+}
+
+.code__resend[disabled] { color: var(--text-muted); text-decoration: none; opacity: .55; }
+.code__resend:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; }
+
+/* ══ errors ═══════════════════════════════════════════════════ */
+
+.field.is-invalid .input,
+.field.is-invalid .code__box {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(255, 69, 58, .14);
+}
+
+.err {
+  color: var(--danger);
+  font-size: 3.43cqw;
+  line-height: 1.3;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity .16s ease, transform .16s ease;
+}
+
+.err.is-shown { opacity: 1; transform: none; }
+
+/* ══ terms ════════════════════════════════════════════════════ */
+
+.terms {
+  color: var(--text-muted);
+  font-size: 3.14cqw;           /* 11 of 350 */
+  line-height: 1.4;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+/* No href until js/main.js supplies one, so until then this is not a link at
+   all: no tab stop, nothing announced as a link, and no click. It still has to
+   read as the thing it will become, which is what the colour is for. */
+.terms a {
+  color: var(--accent-bright);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ══ actions ══════════════════════════════════════════════════ */
+
+.actions { display: flex; flex-direction: column; gap: 4.57cqw; }
+
+.cta {
+  height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font);
+  font-size: 4.57cqw;           /* 16 of 350 */
+  font-weight: var(--fw-xbold);
+  text-transform: uppercase;
+  letter-spacing: .01em;
+  transition: background-color .16s ease, scale 140ms var(--ease-out);
+}
+
+.cta:active { scale: .98; background: var(--accent-press); }
+.cta:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
+
+@media (hover: hover) {
+  .cta:hover { background: var(--red-400); }
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 4cqw;
+  text-align: center;
+}
+
+.foot a {
+  color: var(--accent);
+  font-weight: var(--fw-bold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ══ the success screen ═══════════════════════════════════════ */
+
+.card__step[data-step="done"] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4.57cqw;
+  padding: 6.9cqw 4.57cqw 6cqw;
+  border-radius: var(--r-md);
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--card-blur));
+  -webkit-backdrop-filter: blur(var(--card-blur));
+  text-align: center;
+}
+
+.done__logo { width: 40cqw; height: auto; }
+
+/* A rounded square rather than a circle, which is what the design draws, and
+   green rather than the brand red — red is this card's error colour and a
+   confirmation in it would be the same signal as a rejection. */
+.done__tick {
+  display: grid;
+  place-items: center;
+  width: 21cqw;
+  height: 21cqw;
+  border-radius: 22%;
+  border: 2px solid var(--ok);
+  background: var(--ok);
+  box-shadow: 0 0 0 5px rgba(50, 215, 75, .12), 0 0 26px rgba(50, 215, 75, .35);
+}
+
+.done__tick svg {
+  width: 62%;
+  height: 62%;
+  fill: none;
+  stroke: #062a0d;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.done__head { display: flex; flex-direction: column; gap: 1.7cqw; }
+
+.done__title {
+  color: var(--text);
+  font-size: 6.86cqw;           /* 24 of 350 */
+  font-weight: var(--fw-bold);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.done__sub {
+  color: var(--text-muted);
+  font-size: 4cqw;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.done__box {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 3.4cqw 12px;
+  width: 100%;
+  margin: 0;
+  padding: 4cqw;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: 4cqw;
+  text-align: left;
+}
+
+.done__key { color: var(--text-muted); }
+
+.done__box dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: var(--fw-bold);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.card__step[data-step="done"] .cta { width: 100%; }
+
+/* ══ desktop ══════════════════════════════════════════════════
+
+   The design has a 500px card with the same layout, so the only thing that
+   changes here is the width — every size inside is a share of it and follows
+   on its own. Breaking on the viewport's width and not the stage's: this is
+   about how much room the visitor's screen has, not how the pitch is laid
+   out.
+
+   The height condition is not decoration. A landscape phone is well past
+   760px wide and 390px tall, and at 500px the promo header alone is 114px of
+   that — the card became a tall column scrolling inside a short window with
+   its own headline off the top. The wide card is for screens that are wide
+   AND have somewhere to put it. */
+@container viewport (min-width: 760px) and (min-height: 620px) {
+  .card { width: 500px; }
+}
