@@ -27,13 +27,14 @@
      they can never disagree: at t=1 the ball is exactly on the target at
      exactly S_END of its size, whatever else is retuned.
 
-     0.16. The penalty game this grew from used 0.30 and the head-on free kick
-     0.22; the training-ground plate is shot from further out again and from
-     one side, so the goal is a third of the frame width it used to be and the
-     ball has to arrive correspondingly smaller. The front loading is stronger
-     with it -- the ball leaves the boot fast and floats in at the end, which
-     is what the long ones look like. */
-  var S_END = 0.16;                 // apparent size on the goal line
+     0.20. The penalty game this grew from used 0.30, the head-on free kick
+     0.22; the training-ground plate is shot from further out, so the ball has
+     to arrive smaller and the front loading is stronger with it -- the ball
+     leaves the boot fast and floats in at the end, which is what the long ones
+     look like. Retune this whenever the plate's camera moves: it is the
+     apparent size of the ball ON the goal, so it tracks how big the goal is in
+     the frame. */
+  var S_END = 0.20;                 // apparent size on the goal line
   var Z_END = 1 / S_END;            // 4.545 -- depth there
 
   function depth(t)    { return 1 + (Z_END - 1) * t; }
@@ -152,7 +153,7 @@
   /* Where the near post meets the grass, in stage pixels. The ball's shadow
      travels to here.
 
-     The near-base corner marker, not .goal's own bottom edge. The camera is
+     The left-base corner marker, not .goal's own bottom edge. The camera is
      three-quarter now, so the goal mouth is a quadrilateral and .goal is only
      the box the four corner markers hang in — its bottom edge is the bottom of
      the pitch, which would run the shadow off the screen. */
@@ -703,7 +704,7 @@
   function init() {
     stage = document.getElementById('stage');
     canvas = document.querySelector('.fx');
-    goalEl = document.querySelector('.goal__c[data-corner="near-base"]');
+    goalEl = document.querySelector('.goal__c[data-corner="left-base"]');
     if (canvas) ctx = canvas.getContext('2d');
     loadBall();
   }

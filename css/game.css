@@ -191,28 +191,33 @@
    game draws is hung off it.
 
    assets/img/pitch-training.webp is a training ground at dusk, shot from a
-   free-kick position about twenty-five metres out and off to one side. That
-   last part is what changed everything: the goal is seen at roughly
-   thirty-five degrees, so on screen it is a QUADRILATERAL, not a box. Both
-   posts are still vertical, but the nearer one is taller and its top and base
-   do not line up with the other's.
+   free-kick position about thirty metres out and only slightly to one side.
+   The goal is therefore very nearly front-on, but not quite: it is a
+   QUADRILATERAL on screen, not a box. Both posts are vertical, the nearer one
+   is a little taller, and their tops and bases do not quite line up.
 
    Six numbers describe it, and `python tools/cutout.py` prints all six off the
    file it has just written:
 
-       near post   x .3182   top .2010   base .5117
-       far post    x .5620   top .2674   base .4625
+       left post   x .2620   top .1971   base .4020
+       right post  x .5859   top .2391   base .3935
 
    as fractions of the plate. Every position below is interpolated between
    them. Re-run the tool against a new plate and paste what it prints; do not
    nudge these by eye — they were checked by drawing the quad back over the
    photograph and confirming it lands on the painted frame.
 
-   The mouth comes out very nearly square on screen, which is not an error and
-   is worth knowing before anybody "corrects" it: a 7.32 x 2.44 m goal is 3:1
-   seen square on, and this camera is oblique enough that its width foreshortens
-   to about its height. That is what makes four targets fit comfortably in it on
-   a phone. */
+   Left and right, not near and far. Which post is nearer flips the moment the
+   camera crosses the goal's axis, and if these were named by depth then every
+   consumer would have to know which way round today's plate is — the aim would
+   send a rightward drag to the left of the goal, silently, on a plate that
+   looked fine. The perspective is carried by each post having its own top and
+   base, which works whichever side the taller one is on.
+
+   How square-on the mouth reads is the thing to check after a re-shoot. The
+   goal here measures 622 x 273 px, about 2.3:1, against the 3:1 of a real goal
+   seen dead on. An earlier plate came back at 1:1 — the camera had been swung
+   round some seventy degrees — and everything hung off it inherited the error. */
 .pitch {
   position: relative;
   flex: 1 1 auto;
@@ -225,8 +230,29 @@
   translate: var(--shake-x, 0px) var(--shake-y, 0px);
 
   /* ── the measurement ──────────────────────────────────────── */
-  --gn-x: .3182;  --gn-t: .2010;  --gn-b: .5117;   /* near post */
-  --gf-x: .5620;  --gf-t: .2674;  --gf-b: .4625;   /* far post  */
+  --gl-x: .2620;  --gl-t: .1971;  --gl-b: .4020;   /* left post  */
+  --gr-x: .5859;  --gr-t: .2391;  --gr-b: .3935;   /* right post */
+
+  /* Two figures every placement below is written against, so the arithmetic
+     is stated once: the mouth's width across the plate, and where its base
+     line sits on average. */
+  --g-w: calc(var(--gr-x) - var(--gl-x));          /* .3239 */
+  --g-base: calc((var(--gl-b) + var(--gr-b)) / 2); /* .3978 */
+  --g-cx: calc((var(--gl-x) + var(--gr-x)) / 2);   /* .4240 */
+
+  /* The goal does not sit in the middle of the photograph — it is at .424 of
+     its width, left of centre. Hanging the plate on the stage's centre line
+     therefore hangs the goal left of it, and on a 390px phone that put the
+     left post 11px from the screen edge with both left-hand prizes half off
+     it. This slides the photograph right by exactly the offset between the
+     plate's centre and the goal's, which centres the mouth and leaves the
+     posts about 70px clear on each side.
+
+     Everything anchored to the plate has to carry the same shift or it comes
+     away from the photograph: .pitch::before, .goal__c, .target and
+     .dummies-zone all add it. There is no fifth place — the hit marker is
+     written by js/game.js from rendered rects, so it inherits it. */
+  --plate-x: calc(var(--plate-w) * (.5 - var(--g-cx)));
 
   /* How much of the photograph is on screen. Bigger means a closer camera.
 
@@ -240,41 +266,44 @@
      The cqh term is what makes a phone zoom in, and it also has a floor to
      meet: the plate has to reach past the bottom of the pitch far enough to
      put grass under the ball, which sits in its own row below. Under about
-     180cqh the photograph's own bottom edge lands inside the ball row and the
-     ball stands on black. */
-  --plate-w: max(130cqw, 182cqh);
+     140cqh the photograph's own bottom edge lands inside the ball row and the
+     ball stands on black.
+
+     Both terms had to come down when the camera was moved: this plate holds
+     the goal at .32 of its width where the last one held it at .24, so the
+     same zoom would have drawn a goal wider than a phone. Goal size on screen
+     is --plate-w times --g-w, and that is the number to check after a
+     re-shoot. */
+  --plate-w: max(120cqw, 143cqh);
   --plate-h: calc(var(--plate-w) * 1522 / 1920);
 
-  /* Where the NEAR post meets the grass, measured up from the bottom of the
+  /* Where the goal line meets the grass, measured up from the bottom of the
      pitch. This is the anchor and the plate hangs off it: the goal is the one
      thing that has to stay on screen in the same place at every size, so it
      gets the fixed position and the photograph moves behind it. */
   --goal-base: 38cqh;
-  --plate-b: calc(var(--goal-base) - var(--plate-h) * (1 - var(--gn-b)));
+  --plate-b: calc(var(--goal-base) - var(--plate-h) * (1 - var(--g-base)));
 
   /* ── the dummy rack ───────────────────────────────────────── */
   /* Where it stands is the only thing that decides how far away it is, and
      js/game.js reads that back off the rendered element rather than being
      told — see rackDepth() there. Move these and the collision moves too.
 
-     Its feet sit below the goal line, so it is nearer the camera, and its
-     figures are taller than the goal for the same reason. Both are fractions
-     of the plate, so they scale with everything else. */
-  --rack-x: .470;                                  /* centre, across the plate */
-  /* Far enough down the plate to be in front of the goal, close enough up it
-     that the figures still cross the lower part of the mouth. Pushed to .69 it
-     sat entirely below the goal line: the collision still fired, because
-     js/game.js tests real geometry, but the ball stopped in open grass under
-     the goal and the block read as a bug. */
-  --rack-foot: .625;                               /* its wheels, down the plate */
-  /* .3107 is the near post's own height as a fraction of the plate, so this
-     says "the dummies stand about three fifths of the goal's height".
+     These three are taken from the FIFA reference the owner supplied, measured
+     off it rather than judged: there the rack spans the goal's right 58% with
+     its right edge on the far post, stands 1.13 times the goal's height, and
+     its wheels sit about .78 of a goal height below the goal line.
 
-     Two thirds of that was the first try and the rack swallowed the goal: it
-     covered the lower half of the mouth and took two of the four prizes with
-     it, which is a target the visitor can neither see nor reach. A wall has to
-     be in the way without being all of the way. */
-  --rack-h: calc(var(--plate-h) * .3107 * .72);    /* the figures, not the canvas */
+     Its wheels sit below the goal line, so it is nearer the camera, and its
+     figures are taller than the goal for the same reason. All three are
+     fractions of the plate, so they scale with everything else. */
+  --rack-x: calc(var(--gl-x) + var(--g-w) * .71);  /* centre, across the plate */
+  --rack-foot: calc(var(--g-base) + .1796 * .78);  /* its wheels, down the plate */
+  /* .1796 is the goal's own mean height as a fraction of the plate. A rack at
+     more than about 1.2 of it swallows the mouth and takes two of the four
+     prizes with it, which is a target the visitor can neither see nor reach:
+     a wall has to be in the way without being all of the way. */
+  --rack-h: calc(var(--plate-h) * .1796 * 1.13);   /* the figures, not the canvas */
 }
 
 /* The stadium plate. */
@@ -282,7 +311,7 @@
   content: "";
   position: absolute;
   z-index: -1;
-  left: 50%;
+  left: calc(50% + var(--plate-x));
   bottom: var(--plate-b);
   width: var(--plate-w);
   height: var(--plate-h);
@@ -311,14 +340,14 @@
   position: absolute;
   width: 0;
   height: 0;
-  left: calc(50% + var(--plate-w) * (var(--cx) - .5));
+  left: calc(50% + var(--plate-x) + var(--plate-w) * (var(--cx) - .5));
   bottom: calc(var(--plate-b) + var(--plate-h) * (1 - var(--cy)));
 }
 
-.goal__c[data-corner="near-top"]  { --cx: var(--gn-x); --cy: var(--gn-t); }
-.goal__c[data-corner="near-base"] { --cx: var(--gn-x); --cy: var(--gn-b); }
-.goal__c[data-corner="far-top"]   { --cx: var(--gf-x); --cy: var(--gf-t); }
-.goal__c[data-corner="far-base"]  { --cx: var(--gf-x); --cy: var(--gf-b); }
+.goal__c[data-corner="left-top"]  { --cx: var(--gl-x); --cy: var(--gl-t); }
+.goal__c[data-corner="left-base"] { --cx: var(--gl-x); --cy: var(--gl-b); }
+.goal__c[data-corner="right-top"]   { --cx: var(--gr-x); --cy: var(--gr-t); }
+.goal__c[data-corner="right-base"]  { --cx: var(--gr-x); --cy: var(--gr-b); }
 
 /* ══ the prize targets ════════════════════════════════════════
 
@@ -339,18 +368,21 @@
 }
 
 .target {
-  --tx:  calc(var(--gn-x) + (var(--gf-x) - var(--gn-x)) * var(--u));
-  --tyt: calc(var(--gn-t) + (var(--gf-t) - var(--gn-t)) * var(--u));
-  --tyb: calc(var(--gn-b) + (var(--gf-b) - var(--gn-b)) * var(--u));
+  --tx:  calc(var(--gl-x) + (var(--gr-x) - var(--gl-x)) * var(--u));
+  --tyt: calc(var(--gl-t) + (var(--gr-t) - var(--gl-t)) * var(--u));
+  --tyb: calc(var(--gl-b) + (var(--gr-b) - var(--gl-b)) * var(--u));
   --ty:  calc(var(--tyt) + (var(--tyb) - var(--tyt)) * var(--v));
-  /* The goal's own height at this point across it, in pixels — which is what
-     makes a target at the far post render smaller than one at the near post,
-     because that is what perspective does to it. */
-  --gh-u: calc((var(--tyb) - var(--tyt)) * var(--plate-h));
-  --t: calc(var(--gh-u) * .30);
+  /* One size for all four, a fraction of the goal's WIDTH — which is how the
+     reference sizes them, and it comes to about a seventh of the mouth.
+
+     Perspective scaling was tried, sizing each target off the goal's height
+     at its own place across the mouth. On a strongly angled plate that is the
+     right thing; on this one the two posts differ by a fifth, so it bought a
+     difference nobody could see and one more expression to read. */
+  --t: calc(var(--g-w) * var(--plate-w) * .18);
 
   position: absolute;
-  left: calc(50% + var(--plate-w) * (var(--tx) - .5));
+  left: calc(50% + var(--plate-x) + var(--plate-w) * (var(--tx) - .5));
   bottom: calc(var(--plate-b) + var(--plate-h) * (1 - var(--ty)));
   width: var(--t);
   height: var(--t);
@@ -366,10 +398,10 @@
 
 /* All four placed here rather than inline in the markup, so the geometry is
    in one file with the six numbers it is derived from. */
-.target:nth-child(1) { --u: .20; --v: .24; }
-.target:nth-child(2) { --u: .76; --v: .24; }
-.target:nth-child(3) { --u: .20; --v: .74; }
-.target:nth-child(4) { --u: .76; --v: .74; }
+.target:nth-child(1) { --u: .12; --v: .27; }
+.target:nth-child(2) { --u: .85; --v: .30; }
+.target:nth-child(3) { --u: .12; --v: .80; }
+.target:nth-child(4) { --u: .85; --v: .82; }
 
 .target__card {
   position: absolute;
@@ -481,14 +513,14 @@
 .dummies-zone {
   position: absolute;
   z-index: 5;
-  left: calc(50% + var(--plate-w) * (var(--rack-x) - .5));
+  left: calc(50% + var(--plate-x) + var(--plate-w) * (var(--rack-x) - .5));
   /* The sprite's canvas is taller than the figures on it — tools/cutout.py
-     exports the object on the full frame with its wheels at .9538 of it — so
+     exports the object on the full frame with its wheels at .8962 of it — so
      the box hangs below the grass by the difference, and --rack-h stays the
      height of the figures rather than of the canvas around them. */
   bottom: calc(var(--plate-b) + var(--plate-h) * (1 - var(--rack-foot))
-               - var(--rack-h) * .0462 / .873);
-  height: calc(var(--rack-h) / .873);
+               - var(--rack-h) * .1038 / .7308);
+  height: calc(var(--rack-h) / .7308);
   aspect-ratio: 932 / 520;
   translate: -50% 0;
   pointer-events: none;
@@ -793,7 +825,7 @@
 .msg {
   position: absolute;
   z-index: 30;
-  left: calc(50% + var(--plate-w) * ((var(--gn-x) + var(--gf-x)) / 2 - .5));
+  left: calc(50% + var(--plate-w) * ((var(--gl-x) + var(--gr-x)) / 2 - .5));
   bottom: calc(var(--goal-base) - var(--plate-h) * .085);
   transform: translate(-50%, 0) scale(.9);
   max-width: min(88cqw, 520px);

@@ -82,10 +82,10 @@
      what keeps a target at the far post correctly smaller and higher than the
      same (u, v) at the near one. */
   function inQuad(q, u, v) {
-    var topX = q['near-top'].x + (q['far-top'].x - q['near-top'].x) * u;
-    var topY = q['near-top'].y + (q['far-top'].y - q['near-top'].y) * u;
-    var baseX = q['near-base'].x + (q['far-base'].x - q['near-base'].x) * u;
-    var baseY = q['near-base'].y + (q['far-base'].y - q['near-base'].y) * u;
+    var topX = q['left-top'].x + (q['right-top'].x - q['left-top'].x) * u;
+    var topY = q['left-top'].y + (q['right-top'].y - q['left-top'].y) * u;
+    var baseX = q['left-base'].x + (q['right-base'].x - q['left-base'].x) * u;
+    var baseY = q['left-base'].y + (q['right-base'].y - q['left-base'].y) * u;
     return { x: topX + (baseX - topX) * v, y: topY + (baseY - topY) * v };
   }
 
@@ -182,7 +182,7 @@
      allowed to decide what happens to it. */
   function toFlight(shot, ballEl) {
     var q = quad();
-    var mouth = Math.abs(q['far-top'].x - q['near-top'].x);
+    var mouth = Math.abs(q['right-top'].x - q['left-top'].x);
     var b = TBFx.rect(ballEl);
     return TBFx.flight(
       { x: b.x, y: b.y },
@@ -222,8 +222,8 @@
   function atTarget(el, ballEl) {
     var t = TBFx.rect(el);
     var q = quad();
-    var top = (q['near-top'].y + q['far-top'].y) / 2;
-    var base = (q['near-base'].y + q['far-base'].y) / 2;
+    var top = (q['left-top'].y + q['right-top'].y) / 2;
+    var base = (q['left-base'].y + q['right-base'].y) / 2;
     return {
       aim: { x: t.x, y: t.y },
       power: base === top ? 0.6 : Math.max(0, Math.min(1, (base - t.y) / (base - top))),

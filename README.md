@@ -103,9 +103,16 @@ Six numbers describe it, and `python tools/cutout.py` prints all six off the
 file it has just written:
 
 ```
-near post   x .3182   top .2010   base .5117
-far post    x .5620   top .2674   base .4625      (fractions of the plate)
+left post   x .2620   top .1971   base .4020
+right post  x .5859   top .2391   base .3935      (fractions of the plate)
 ```
+
+**Left and right, not near and far.** Which post is nearer flips the moment the
+camera crosses the goal's axis, and naming them by depth would make every
+consumer of these numbers need to know which way round today's plate is — a
+rightward drag would be sent to the left of the goal, silently, on a plate that
+looked perfectly fine. The perspective is carried by each post having its own
+top and base, which works whichever side the taller one is on.
 
 `css/game.css` places four zero-size markers on those corners; everything else
 — the four targets, the ball's ground line, the caption — is bilinear
@@ -114,10 +121,19 @@ repeating the arithmetic. Re-run the tool against a new plate and paste what it
 prints. It was checked by drawing the quad back over the photograph and
 confirming it lands on the painted frame.
 
-The mouth comes out very nearly square on screen. That is not an error: a
-7.32 × 2.44 m goal is 3:1 seen square on, and this camera is oblique enough
-that its width foreshortens to about its height — which is what makes four
-targets fit comfortably in it on a phone.
+**How square-on the mouth reads is the thing to check after a re-shoot.** It
+comes out about 2.3:1 here, against the 3:1 of a real goal seen dead on, so the
+camera is only slightly off the axis. An earlier plate came back at 1:1 — the
+camera had been swung round some seventy degrees — and everything that hung off
+it inherited the error: the rack, sized from the goal's height, grew wider than
+the mouth it was supposed to stand in front of. One ratio, checked once, catches
+the whole class of mistake.
+
+The goal is not in the middle of the photograph — it sits at .424 of its width.
+`--plate-x` slides the plate right by the difference so the mouth lands on the
+stage's centre line; without it a 390px phone put the left post 11px from the
+screen edge and both left-hand prizes half off it. Everything anchored to the
+plate carries that same shift, or it comes away from the photograph.
 
 ## Reading a shot out of a drag
 
@@ -159,13 +175,24 @@ asks it; nothing keeps a second opinion.
 
 ## Where the rack stands
 
-Its position and height in `css/game.css` are a composition choice, not the
-photograph's own perspective, and it is worth being plain about that: placed
-truthfully, a wall standing the regulation 9.15 m from the ball would cover the
-goal almost completely, and there would be no game. So it is brought forward
-and shrunk until the goal is playable — far enough down the plate to be in
-front of it, close enough up that the figures still cross the lower part of the
-mouth.
+Its three numbers are measured off the FIFA training-mode reference the owner
+supplied rather than judged by eye: there the rack spans the goal's right 58%
+with its right edge near the far post, stands 1.13 times the goal's height, and
+its wheels sit about .78 of a goal height below the goal line. `--rack-x`,
+`--rack-h` and `--rack-foot` say exactly that, as fractions of the plate.
+
+It is still a composition choice rather than the photograph's own perspective,
+and it is worth being plain about that: placed truthfully, a wall standing the
+regulation 9.15 m from the ball would cover the goal almost completely, and
+there would be no game. The wheels sitting below the goal line are what make it
+nearer than the goal, and being nearer is what lets the figures stand taller
+than the mouth they cross.
+
+The height is the number to watch. `--rack-h` is a multiple of the goal's
+height, and the sprite's own aspect turns that into a width — so on a plate
+whose mouth reads squarer than the reference's, the same multiple produces a
+rack wider than the goal, and it takes two of the four prizes with it. A wall
+has to be in the way without being all of the way.
 
 Whatever those numbers are, the collision follows them: `js/game.js` reads the
 rack's depth off its own rendered feet rather than being told, so moving it in

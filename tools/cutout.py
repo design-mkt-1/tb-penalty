@@ -85,7 +85,7 @@ JOBS = {
 # needed and for the same reason.
 PLATES = {
     'pitch-training': ('_raw-pitch-training.png', 1920, 82, 0.42,
-                       (0.25, 0.78, 0.28, 0.59)),
+                       (0.28, 0.62, 0.26, 0.62)),
 }
 
 
@@ -311,11 +311,18 @@ def find_goal_quad(img, band):
 
     `band` is (y0, y1, x0, x1) as fractions of the image: where to look. It is
     not tuning — it is the answer to a real ambiguity. A floodlight pylon is
-    also a tall solid vertical bright thing, and on this plate it is three
-    times the height of a goalpost, so an unbounded search returns a pylon
-    every time. The band says "the goal is in this part of the picture", which
-    is a fact about the photograph, and the four numbers that come out are then
-    measured rather than assumed.
+    also a tall solid vertical bright thing and can be three times the height
+    of a goalpost, so an unbounded search returns a pylon every time. The band
+    says "the goal is in this part of the picture", which is a fact about the
+    photograph, and the four numbers that come out are then measured rather
+    than assumed.
+
+    If a mast stands directly behind an upright, the two merge into one column
+    run whose top is the mast's. Start the band's y0 at the crossbar and the
+    mast is excluded — that is what the band is for, and it is why there is no
+    automatic crossbar detector here. One was written and removed: a crossbar
+    is white, long and horizontal, and so is a painted touchline. It clamped
+    the goal to twenty pixels tall on the first plate that had bright grass.
 
     The camera is three-quarter, so the goal is not a rectangle on screen. Its
     mouth is a quadrilateral: the two posts are still vertical, but one is
@@ -414,15 +421,27 @@ def find_goal_quad(img, band):
         return None
     second = int(ok[np.argmax(np.abs(ok - first))])
 
-    # The taller post is the nearer one: both are 2.44 m, so the one that
-    # subtends more of the frame is the one closer to the camera.
+    # Reported LEFT and RIGHT by where they are on screen, not near and far by
+    # depth.
+    #
+    # Depth is the tempting name — one post is closer than the other and that
+    # is why it is taller — but it is the wrong one to publish, because which
+    # side is nearer flips the moment the camera moves across the goal's axis.
+    # Everything downstream would then have to know which way round today's
+    # plate is: the aim would map a rightward drag to the left of the goal, and
+    # the targets would swap sides, silently, on a plate that looked fine.
+    #
+    # Nothing downstream needs to know about depth anyway. The perspective is
+    # already carried by each post having its own top and base — the taller one
+    # is the nearer one, and interpolating between them reproduces that whether
+    # it is on the left or the right.
     a_post = (first, tops[first], bases[first])
     b_post = (second, tops[second], bases[second])
-    near, far = (a_post, b_post) if runs[first] >= runs[second] else (b_post, a_post)
+    left, right = sorted((a_post, b_post), key=lambda p: p[0])
 
     return {
-        'near': (near[0] / w, near[1] / h, near[2] / h),
-        'far':  (far[0] / w, far[1] / h, far[2] / h),
+        'left':  (left[0] / w, left[1] / h, left[2] / h),
+        'right': (right[0] / w, right[1] / h, right[2] / h),
     }
 
 
@@ -460,7 +479,7 @@ def main():
             if goal and goal is not None:
                 # Everything is appended below the goal, so only the vertical
                 # fractions move, and they move by exactly the growth.
-                for post in ('near', 'far'):
+                for post in ('left', 'right'):
                     x, top, base = goal[post]
                     goal[post] = (x, top / (1 + extend), base / (1 + extend))
 
@@ -470,8 +489,8 @@ def main():
               % (name, img.width, img.height, '', os.path.getsize(dst) / 1024))
         if goal:
             print('    painted goal, as fractions of the plate — css/game.css:')
-            print('      --goal-near: %.4f  top %.4f  base %.4f' % goal['near'])
-            print('      --goal-far:  %.4f  top %.4f  base %.4f' % goal['far'])
+            print('      --goal-left:  %.4f  top %.4f  base %.4f' % goal['left'])
+            print('      --goal-right: %.4f  top %.4f  base %.4f' % goal['right'])
 
 
 if __name__ == '__main__':
