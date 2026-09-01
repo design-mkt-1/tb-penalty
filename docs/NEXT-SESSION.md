@@ -23,24 +23,32 @@ practice. `js/animator.js` went with him.
 
 **And then the camera came back in front.** Two renders were spent on the
 angled view and neither got close: put beside the reference at the same frame
-size, the goal measured 2.3:1 against its 3.7:1, the rack covered 82% of the
+size, the goal measured 2.3:1 against the reference's 3.5:1 (measured on a
+grid — the finder cannot read that screenshot), the rack covered 82% of the
 mouth against its 53%, the ball sat at the rack's feet instead of a long stretch
 of grass away, and only three of the four prizes could be picked out. The owner
 called it — the angle was too hard to hit — and head-on removes the whole class
 of failure rather than patching it: a real goal is exactly 3:1 seen square on,
 so there is one number to check and it cannot be argued with.
 
+**And then the camera went up.** Head-on at ball height fixed the geometry but
+the picture still read as a band of grass seen edge-on. The owner asked for the
+view from above, for the mannequins to be made properly, and for the scene to be
+symmetric. So: a plate shot from high and well back, where the pitch reads as a
+surface with its mowing stripes running away; a re-rendered rack with the figures
+bolted to the rail and no faces; and the target columns made actually symmetric.
+
 Nothing in the game changed for any of it. The geometry is six fractions and
 four corner markers, and `js/aim.js` interpolates inside whatever shape it
-reads, so three cameras have cost three plates and some numbers — no logic.
+reads, so four cameras have cost four plates and some numbers — no logic.
 
 ## What was measured, and what it is worth
 
 **The goal, as a quadrilateral.** Six numbers, and everything hangs off them:
 
 ```
-left post   x .3198   top .2897   base .4428
-right post  x .6703   top .2890   base .4434
+left post   x .4035   top .2804   base .3563
+right post  x .5914   top .2740   base .3647
 ```
 
 `python tools/cutout.py` prints these off the file it ships. They are NOT the
@@ -53,25 +61,24 @@ Named left and right, by screen x, and not near and far: which post is nearer
 flips when the camera crosses the goal's axis, and a depth name would silently
 invert the aim on a plate that looked fine.
 
-The two posts now agree to within .0007 — the plate is head-on. They are still
+The two posts agree to within .009 — the plate is head-on. They are still
 six numbers rather than four, because `js/aim.js` interpolates inside whatever
 shape the four markers describe and a rectangle is simply the case where they
 line up. Collapsing them would have to be undone the next time the camera moves.
 
-**The dummy rack inside its own canvas.** x .1620–.8380, y .1654–.8962.
+**The dummy rack inside its own canvas.** x .1663–.8315, y .1442–.8538.
 `RACK_BODY` in `js/game.js`, also printed by the tool. The rest of the element
 is empty canvas and must not block a shot.
 
 **The mouth's aspect, which is the one ratio to check after a re-shoot.**
-673 × 234 px — **2.88:1**, against the 3:1 of a real goal seen dead on from ball
-height. That is the acceptance test for a render, and it is the whole reason the
-camera came back in front: the two angled plates measured 1:1 and 2.3:1, and
-neither failure stayed in the photograph (see *Bugs and traps*).
+481 × 169 px in the photograph, and **3.12:1** once the corner markers render,
+against the 3:1 of a real goal seen dead on. That is the acceptance test for a
+render: the two angled plates measured 1:1 and 2.3:1, and neither failure stayed
+in the photograph (see *Bugs and traps*).
 
-**What the rack's width came to.** 65% of the mouth, measured off the rendered
-element rather than assumed — against 82% on the plate before it, and the 51%
-the reference shows. This number is not set anywhere; it falls out of the
-aspect, which is why the aspect is the thing that gets checked.
+**What the rack's width came to.** 54% of the mouth, measured off the rendered
+element — the reference's own figure. It is now pinned directly rather than left
+to fall out of the height, which is what let it reach 82% and cover a prize.
 
 ## Decisions already taken
 
@@ -106,12 +113,17 @@ aspect, which is why the aspect is the thing that gets checked.
   sat entirely below the goal line: the collision still fired, because the
   geometry is real, but the ball stopped in open grass and the block read as a
   bug.
-* **The rack's width is not set anywhere — it falls out of its height.**
-  `--rack-h` is a multiple of the goal's height and the sprite's aspect turns
-  that into a width, so the rack's share of the mouth is about 1.87 divided by
-  the mouth's ratio: 65% head-on, 82% on the 2.3:1 plate, where it covered a
-  prize outright. This is the single mechanism that turned a bad camera into an
-  unwinnable target, and it is why the plate is measured before anything else.
+* **The rack's width used to fall out of its height, and that hid a prize.**
+  The sprite's aspect turns one into the other, so a height of 1.13 goal-heights
+  gave a body 1.87 goal-heights wide — 65% of a 2.88:1 mouth, 82% of a 2.3:1
+  one, where it covered a prize outright. The width is pinned directly now, at
+  .54 of the mouth, and the height follows. Keep it that way: width decides
+  whether a prize is coverable, and a wrong height is at least visible.
+* **The rack's standoff has to move when the aspect does.** A higher camera
+  shortens the mouth, so `--rack-foot` in goal-heights becomes a shorter drop on
+  screen. The reference's .78 left the figures' heads nine pixels above the goal
+  line on this plate — a wall the ball sails over. .55 now. This is the number
+  that decides whether there is a game, and nothing warns you about it.
 * **Three cameras, and the same lesson each time.** Head-on was where this
   started; it was moved to a three-quarter view to match a FIFA reference, came
   back at 1:1, was re-shot at 2.3:1, and has now come back to head-on. Compare
@@ -119,7 +131,7 @@ aspect, which is why the aspect is the thing that gets checked.
   building on it — the two angled plates both looked plausible in isolation and
   neither survived being measured.
 * **The goal need not be in the middle of the plate.** On the current head-on
-  render it is, at .4951, so `--plate-x` computes to half a percent and does
+  render it is, at .4975, so `--plate-x` computes to a quarter of a percent and does
   nothing. On the plate before it the goal sat at .424, and hanging the
   photograph on the stage's centre line put the left post 11px from a 390px
   phone's edge with both left-hand prizes half off screen. Do not delete
@@ -128,9 +140,17 @@ aspect, which is why the aspect is the thing that gets checked.
   `.goal__c`, `.target`, `.dummies-zone` and `.msg`. Miss one and that element
   slides off the photograph — `.msg` was in fact missed when the shift was first
   added, and went unnoticed only because the next plate happened to be centred.
-* **Target size is a fit constraint, not taste.** `--t` is .14 of the goal's
-  width. Two rows have to live inside a mouth whose height is .347 of its width;
-  at the .18 the angled build used they come to .36 and do not fit at all.
+* **Target size is a fit constraint, not taste, and it moves with the camera.**
+  Two rows have to live inside the mouth's height, which is 1/aspect of its
+  width. At 3.12:1 that is .32, so `--t` is .115. The .14 that suited the last
+  plate left four pixels of air and the targets touched the bar and the line;
+  the .18 before that did not fit at all.
+* **Numbers tuned for an old plate do not announce themselves.** The right-hand
+  target column sat at u .85 against the left's .12 — .15 in from one post and
+  .12 from the other — for two plates, because the angled composition had needed
+  the far side pulled in. Nine pixels of asymmetry on a 299px goal: it survived
+  review and the owner caught it. On any re-shoot, re-derive every number that
+  was ever justified by the old camera.
 * **`pickBonus()` used to steal focus unconditionally.** Now that the game
   calls it before the card is shown, an unguarded `focus()` moves focus into a
   hidden dialog. It only acts if the menu was actually open — the same guard

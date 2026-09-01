@@ -84,8 +84,18 @@ JOBS = {
 # into more of it convincingly — this is the same trick fs-penalty's plate
 # needed and for the same reason.
 PLATES = {
-    'pitch-training': ('_raw-pitch-training.png', 1920, 82, 0.42,
-                       (0.40, 0.66, 0.28, 0.72)),
+    # 2560 rather than the usual 1920. This camera is high enough that the goal
+    # is only .19 of the plate's width, so css/game.css has to zoom about 1.7x
+    # harder than before to draw it at a usable size on a phone — and at 1920
+    # that zoom was enlarging the source. The raw render is 2752 wide, so 2560
+    # costs nothing but file size and stops the grass going soft.
+    # The band's LOWER edge matters as much as its upper one. At y1 = 0.50 it
+    # cut through the right post and the finder reported its base at exactly
+    # the band edge — a goal half as tall as it is, and a plausible-looking
+    # 3.36:1 that was pure artefact. If a post's top or base comes back equal
+    # to a band edge to three decimals, the band clipped it; widen and re-run.
+    'pitch-training': ('_raw-pitch-training.png', 2560, 78, 0.42,
+                       (0.08, 0.58, 0.18, 0.82)),
 }
 
 

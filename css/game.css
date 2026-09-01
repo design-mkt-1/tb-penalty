@@ -191,15 +191,16 @@
    game draws is hung off it.
 
    assets/img/pitch-training.webp is a training ground at dusk, shot square on
-   to the goal from about twenty metres out, at ball height. The goal is
-   therefore a rectangle on screen: both posts the same height, the crossbar
-   parallel to the top of the frame.
+   to the goal from high up and well back, so the camera looks down and the
+   pitch reads as a surface with its mowing stripes running away, rather than as
+   a band of grass seen edge-on. The goal is a rectangle on screen: both posts
+   the same height, the crossbar parallel to the top of the frame.
 
    Six numbers still describe it, and `python tools/cutout.py` prints all six
    off the file it has just written:
 
-       left post   x .3198   top .2897   base .4428
-       right post  x .6703   top .2890   base .4434
+       left post   x .4035   top .2804   base .3563
+       right post  x .5914   top .2740   base .3647
 
    as fractions of the plate. Every position below is interpolated between
    them. Re-run the tool against a new plate and paste what it prints; do not
@@ -220,18 +221,29 @@
    looked fine.
 
    HOW SQUARE-ON THE MOUTH READS IS THE ONE NUMBER TO CHECK AFTER A RE-SHOOT.
-   A 7.32 x 2.44 m goal is exactly 3:1 seen dead on from ball height. This one
-   measures 673 x 234 px — 2.88:1 — and the two posts agree to within .0007 of
-   the plate's height, which is what "head-on" means as a number rather than as
-   an opinion.
+   This plate measures 481 x 169 px — 2.85:1 — with the posts agreeing to .0091
+   in their tops and .0119 in their bases, which is what "head-on" means as a
+   number rather than as an opinion. A real 7.32 x 2.44 m goal is 3:1 seen dead
+   on, and every plate that has ever worked here has sat just under it.
 
-   Two earlier plates were shot at an angle and both failed here: one came back
-   at 1:1, the camera swung round some seventy degrees, and its replacement at
-   2.3:1. The failure is never confined to the photograph. Everything hung off
-   the plate inherits it — most sharply the rack, whose width falls out of its
-   height, so a mouth that reads too square produces a wall wider than the goal
-   it is supposed to stand in front of, and it then covers a prize. Reject the
-   render; do not compensate in the CSS below. */
+   ALWAYS VERIFY BY DRAWING THE QUAD BACK OVER THE PHOTOGRAPH. Two things this
+   file was rebuilt on turned out to be artefacts of not doing that:
+
+   * A band whose LOWER edge cuts a post makes the finder report that post's
+     base at exactly the band edge. This plate first came back at 3.36:1 that
+     way — a goal half as tall as it is, and a number that looked like success.
+     If a top or base equals a band edge to three decimals, the band clipped it.
+   * The finder is tuned for clean plates and fails silently on a compressed
+     game screenshot with a bright net. Pointed at the owner's FIFA reference it
+     returned a skewed quad sitting well below the goal line, and 2.85:1 with
+     it. Drawn back, it was visibly wrong; measured on a grid the reference is
+     nearer 3.5:1. Do not compare a plate against a tool reading of a
+     screenshot — compare drawings.
+
+   The check still earns its place. Two plates shot at an angle failed it badly
+   — one at 1:1, the camera swung round some seventy degrees, its replacement at
+   2.3:1 — and the failure is never confined to the photograph. Everything hung
+   off the plate inherits it. Reject the render; do not compensate below. */
 .pitch {
   position: relative;
   flex: 1 1 auto;
@@ -244,15 +256,15 @@
   translate: var(--shake-x, 0px) var(--shake-y, 0px);
 
   /* ── the measurement ──────────────────────────────────────── */
-  --gl-x: .3198;  --gl-t: .2897;  --gl-b: .4428;   /* left post  */
-  --gr-x: .6703;  --gr-t: .2890;  --gr-b: .4434;   /* right post */
+  --gl-x: .4035;  --gl-t: .2804;  --gl-b: .3563;   /* left post  */
+  --gr-x: .5914;  --gr-t: .2740;  --gr-b: .3647;   /* right post */
 
   /* Four figures every placement below is written against, so the arithmetic
      is stated once: the mouth's width across the plate, where its base line
      sits, where its centre is, and how tall it is. */
-  --g-w: calc(var(--gr-x) - var(--gl-x));          /* .3505 */
-  --g-base: calc((var(--gl-b) + var(--gr-b)) / 2); /* .4431 */
-  --g-cx: calc((var(--gl-x) + var(--gr-x)) / 2);   /* .4951 */
+  --g-w: calc(var(--gr-x) - var(--gl-x));          /* .1879 */
+  --g-base: calc((var(--gl-b) + var(--gr-b)) / 2); /* .3605 */
+  --g-cx: calc((var(--gl-x) + var(--gr-x)) / 2);   /* .4975 */
   /* The mouth's own height as a fraction of the plate's height. The rack is
      sized and stood off this, so it is written once here rather than typed as
      a literal into each of the two places that want it — which is how the last
@@ -292,14 +304,18 @@
      140cqh the photograph's own bottom edge lands inside the ball row and the
      ball stands on black.
 
-     Retuned for the head-on plate, which holds the goal at .35 of its width.
-     Goal size on screen is --plate-w times --g-w, and that is the number to
-     check after a re-shoot: 100cqw keeps a wide screen covered, and 158cqh
-     draws a goal about 300px across on a 390px phone — a little under four
-     fifths of the width, which leaves the posts clear of the edges and still
-     lets four targets sit inside the mouth. */
-  --plate-w: max(100cqw, 158cqh);
-  --plate-h: calc(var(--plate-w) * 1522 / 1920);
+     Retuned for the high camera, which holds the goal at only .188 of the
+     plate's width — the price of standing far enough back to see the pitch as a
+     surface. Goal size on screen is --plate-w times --g-w, and that is the
+     number to check after a re-shoot: 100cqw keeps a wide screen covered, and
+     295cqh draws a goal about 300px across on a 390px phone, which leaves the
+     posts clear of the edges and still lets four targets sit inside the mouth.
+
+     That zoom is why tools/cutout.py writes this plate at 2560 rather than the
+     usual 1920: on a phone the plate renders about 1590 CSS px wide, and at
+     three device pixels each the 1920 source was being enlarged twofold. */
+  --plate-w: max(100cqw, 295cqh);
+  --plate-h: calc(var(--plate-w) * 2029 / 2560);
 
   /* Where the goal line meets the grass, measured up from the bottom of the
      pitch. This is the anchor and the plate hangs off it: the goal is the one
@@ -313,29 +329,55 @@
      js/game.js reads that back off the rendered element rather than being
      told — see rackDepth() there. Move these and the collision moves too.
 
-     The height and the standoff are measured off the FIFA reference the owner
-     supplied rather than judged: there the rack stands 1.17 times the goal's
-     height with its wheels about .78 of a goal height below the goal line.
+     The width is measured off the FIFA reference the owner supplied: its rack
+     covers .54 of the goal's width.
+
+     The standoff is not. .78 of a goal height below the line was taken from the
+     reference too, and it stopped working the moment the camera went up: a
+     higher camera shortens the mouth, so the same standoff in goal-heights is a
+     shorter drop on screen and the figures' heads finished nine pixels above
+     the line — a wall the ball could sail over without noticing. .55 puts their
+     heads across the lower half of the mouth, which is what a wall is for.
+     RE-CHECK THIS WHENEVER THE MOUTH'S ASPECT MOVES; it is the number that
+     decides whether there is a game.
 
      Its wheels sit below the goal line, so it is nearer the camera, and its
      figures are taller than the goal for the same reason.
 
-     ONLY THE HEIGHT IS SET. The width is not a number anywhere — it falls out
-     of the height through the sprite's own aspect, and that is the trap this
-     scene has fallen into twice. Body width comes to 1.87 goal-heights, so as
-     a fraction of the mouth it is 1.87 divided by the mouth's aspect ratio: at
-     the reference's 3.66:1 that is the 51% the reference actually shows, at
-     this plate's 2.88:1 it is 65%, and on the 2.3:1 plate before it, 82% —
-     a wall wider than the goal, sitting on top of a prize. Check the rendered
-     width against the mouth after any re-shoot; if it is far from a half, the
-     plate is wrong and no amount of tuning here will fix it.
+     THE WIDTH IS THE NUMBER THAT IS SET, and the height falls out of it. It
+     used to be the other way round, and that is why the rack twice grew wide
+     enough to sit on a prize: the sprite's aspect turns one into the other, so
+     a height of 1.13 goal-heights produced a body 1.87 goal-heights WIDE, which
+     came to 65% of this mouth and 82% of the 2.3:1 one.
 
-     Centred on the mouth rather than off to one side, which was an artefact of
-     composing against an angled reference. Centred, the two target columns at
-     u .12 and .85 keep their middles clear of it. */
+     Note what that arithmetic does NOT explain. The reference's rack covers 54%
+     of its mouth at 2.85:1, where the same sum would give 66% — so its rack is
+     simply built narrower relative to its height than this sprite is. Sprites
+     differ, and that is exactly why the share of the mouth has to be pinned
+     directly rather than derived from a height and hoped about.
+
+     Driving from the width fixes the failure mode, not just the number. Width
+     is what decides whether a prize is coverable, so it is what gets pinned;
+     and when the plate or the sprite is wrong the error now shows up as figures
+     of the wrong HEIGHT — visibly stumpy or absurdly tall — instead of as a
+     prize quietly hidden behind a wall. A wrong picture beats a wrong game.
+
+     The three --rack-body-* numbers are the sprite's own proportions, printed
+     by tools/cutout.py as RACK_BODY every time the sprite is rebuilt. They live
+     here, once, because three separate rules want them and they change with
+     every re-render — typed as literals they went stale silently, which is how
+     a .1796 from a two-plates-ago goal survived into a live stylesheet. */
+  --rack-body-w: .6652;   /* the figures' width inside their canvas */
+  --rack-body-h: .7096;   /* their height */
+  --rack-below:  .1462;   /* canvas left below their feet */
+
+  /* Centred on the mouth. The reference has its rack off to the right because
+     its free kick is taken from the right; this shot is straight on, and the
+     owner asked for the scene to be symmetric. */
   --rack-x: calc(var(--gl-x) + var(--g-w) * .5);   /* centre, across the plate */
-  --rack-foot: calc(var(--g-base) + var(--g-h) * .78);  /* wheels, down the plate */
-  --rack-h: calc(var(--plate-h) * var(--g-h) * 1.13);   /* figures, not canvas */
+  --rack-foot: calc(var(--g-base) + var(--g-h) * .55);  /* wheels, down the plate */
+  --rack-w: calc(var(--plate-w) * var(--g-w) * .54 / var(--rack-body-w));
+  --rack-h: calc(var(--rack-w) * 520 / 932 * var(--rack-body-h));
 }
 
 /* The stadium plate. */
@@ -408,17 +450,18 @@
      reference sizes them, and .14 is what its 69px squares come to in a 505px
      mouth.
 
-     .14 rather than the .18 the angled build used, and it is a fit constraint
-     rather than taste. The mouth is 2.88:1, so its height is .347 of its
-     width, and two rows of targets have to live inside that: at .18 the pair
-     comes to .36 of the width and does not fit at all, at .14 it comes to .28
-     and leaves .067 to share between the crossbar, the middle and the line.
+     A fit constraint rather than taste, and it has to be re-derived every time
+     the camera moves. Two rows have to live inside the mouth's height, which is
+     1/aspect of its width: at 3.12:1 that is .32 of the width, so two rows of
+     .14 come to .28 and leave four pixels of air on a phone — the targets
+     touched the crossbar and the goal line. .115 leaves .09 to share between
+     the bar, the middle and the line, which reads as deliberate spacing.
 
      Perspective scaling was tried, sizing each target off the goal's height at
      its own place across the mouth. That is the right thing on a strongly
      angled plate; head-on the two posts are the same height and it would be
      arithmetic that can only ever return the same answer twice. */
-  --t: calc(var(--g-w) * var(--plate-w) * .14);
+  --t: calc(var(--g-w) * var(--plate-w) * .115);
 
   position: absolute;
   left: calc(50% + var(--plate-x) + var(--plate-w) * (var(--tx) - .5));
@@ -441,10 +484,19 @@
    .403 of the mouth's height, so a row centred at .23 reaches from .03 to .43
    and one at .77 from .57 to .97: clear of the crossbar, clear of the line,
    and with a band of open net between them for a ball to pass through. */
-.target:nth-child(1) { --u: .12; --v: .23; }
-.target:nth-child(2) { --u: .85; --v: .23; }
-.target:nth-child(3) { --u: .12; --v: .77; }
-.target:nth-child(4) { --u: .85; --v: .77; }
+/* Symmetric, and the pairs are written to show it: .12 from the left post and
+   .12 from the right, .25 from the crossbar and .25 from the line.
+
+   The right column used to be .85, which is .15 in from the right post against
+   the left's .12 — a 9px difference on a 299px goal, small enough to survive
+   review and large enough to see. It was carried over from the angled
+   composition, where the far side of the mouth genuinely needed pulling in, and
+   it stopped meaning anything the moment the camera came round to the front.
+   When a plate changes, check the numbers that were tuned FOR the old one. */
+.target:nth-child(1) { --u: .12; --v: .25; }
+.target:nth-child(2) { --u: .88; --v: .25; }
+.target:nth-child(3) { --u: .12; --v: .75; }
+.target:nth-child(4) { --u: .88; --v: .75; }
 
 .target__card {
   position: absolute;
@@ -563,12 +615,14 @@
   z-index: 5;
   left: calc(50% + var(--plate-x) + var(--plate-w) * (var(--rack-x) - .5));
   /* The sprite's canvas is taller than the figures on it — tools/cutout.py
-     exports the object on the full frame with its wheels at .8962 of it — so
-     the box hangs below the grass by the difference, and --rack-h stays the
-     height of the figures rather than of the canvas around them. */
+     exports the object on the full frame, leaving --rack-below of it under the
+     wheels — so the box hangs below the grass by that much, and --rack-h stays
+     the height of the figures rather than of the canvas around them. */
   bottom: calc(var(--plate-b) + var(--plate-h) * (1 - var(--rack-foot))
-               - var(--rack-h) * .1038 / .7308);
-  height: calc(var(--rack-h) / .7308);
+               - var(--rack-h) * var(--rack-below) / var(--rack-body-h));
+  /* Width is what is set — see --rack-w — and aspect-ratio gives the height.
+     Setting the height here instead is what made the width an accident. */
+  width: var(--rack-w);
   aspect-ratio: 932 / 520;
   translate: -50% 0;
   pointer-events: none;
