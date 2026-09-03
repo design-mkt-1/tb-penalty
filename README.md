@@ -95,21 +95,21 @@ The attempt counter lives in memory, so a reload restarts the sequence.
 ## The goal is a quadrilateral
 
 `assets/img/pitch-training.webp` is a training ground at dusk photographed
-square on to the goal from high up and well back, so the camera looks down and
-the pitch reads as a surface with its mowing stripes running away rather than as
-a band of grass seen edge-on. The goal is a rectangle on screen — but it is
-still described as a quadrilateral, and that is deliberate.
+square on to the goal — re-shot 2026-09-03 with the camera much closer, so the
+goal fills the frame (.4275 of the plate's width) instead of standing far off
+in it. The goal is a rectangle on screen — but it is still described as a
+quadrilateral, and that is deliberate.
 
 Six numbers describe it, and `python tools/cutout.py` prints all six off the
 file it has just written:
 
 ```
-left post   x .4035   top .2804   base .3563
-right post  x .5914   top .2740   base .3647      (fractions of the plate)
+left post   x .2885   top .2849   base .4691
+right post  x .7160   top .2967   base .4679      (fractions of the plate)
 ```
 
-The two posts agree to within .009, which is what "head-on" means as a
-measurement rather than as an intention. Nothing downstream is told they agree:
+The two bases agree to within .002 and the tops to within .012, which is what
+"head-on" means as a measurement rather than as an intention. Nothing downstream is told they agree:
 `js/aim.js` reads four corner markers and interpolates bilinearly inside
 whatever shape they describe, and a rectangle is just the case where the corners
 line up. Collapsing this to four numbers would buy nothing and would have to be
@@ -132,9 +132,11 @@ confirming it lands on the painted frame.
 ### One ratio catches the whole class of mistake
 
 **How square-on the mouth reads is the thing to check after a re-shoot.** A
-7.32 × 2.44 m goal is exactly 3:1 seen dead on. This plate measures 481 × 169 px
-in the photograph, and 3.12:1 once the four corner markers are rendered — that
-single number is the acceptance test.
+7.32 × 2.44 m goal is exactly 3:1 seen dead on. This plate measures 1532 × 573
+px in the photograph — 2.67:1 — and that single number is the acceptance test.
+(An earlier revision of this file claimed 3.12:1 for the previous plate; the
+arithmetic from its own six fractions gave 2.85:1. The claim was never
+re-derived from the measurement — do that, every time.)
 
 It is worth being blunt about why, because two plates failed it. One came back
 at 1:1: the camera had been swung round some seventy degrees. Its replacement
@@ -159,8 +161,8 @@ not compensate in the CSS. The CSS is where compensating was tried, and it is
 what turned one bad number into a hidden prize.
 
 `--plate-x` slides the plate sideways so the mouth lands on the stage's centre
-line. On this plate the goal sits at .4951 of the width and the shift is half a
-percent — invisible. It stays anyway: on the previous plate the goal sat at .424
+line. On this plate the goal sits at .5023 of the width and the shift is a
+quarter percent — invisible. It stays anyway: on the previous plate the goal sat at .424
 and hanging the photograph on the centre put the left post 11px from a 390px
 phone's edge with both left-hand prizes half off it. Everything anchored to the
 plate carries the same shift, or it comes away from the photograph.
@@ -264,11 +266,12 @@ no wall to compete with.
 
 Their size is a fit constraint, not taste, and it has to be re-derived whenever
 the camera moves. Two rows have to live inside the mouth's height, which is
-1/aspect of its width. At 3.12:1 that is .32 of the width, so `--t` is **.115**:
-two rows come to .23 and leave .09 to share between the crossbar, the middle and
-the line. The .14 that suited the previous plate left four pixels of air on a
-phone, with the targets touching the bar and the goal line; the .18 before that
-did not fit inside the goal at all.
+1/aspect of its width. This mouth is 2.67:1, so its height is .374 of its
+width, and `--t` is **.14**: two rows come to .28 and leave .094 to share
+between the crossbar, the middle and the line. (The previous plate ran `--t`
+.115 against a claimed 3.12:1 that its own fractions contradicted — the real
+2.85:1 had .12 of slack, so the targets were smaller than even their own
+derivation required. Derive from the measured aspect, not from the prose.)
 
 Their placement is symmetric and written to show it — .12 in from each post,
 .25 down from the bar and .25 up from the line. The right column was .85 for two
@@ -296,11 +299,14 @@ the image model hallucinated, downscales and writes WebP — and it prints the
 four fractions of the dummy rack's own canvas that `RACK_BODY` in `js/game.js`
 tests the trajectory against. Two things in it are worth knowing:
 
-**The plate's foreground is invented.** The photograph is 16:9 and a phone is
-not, so pinning the goal where the composition wants it leaves the image's own
+**The plate's foreground is invented.** The photograph is wider than a phone
+is, so pinning the goal where the composition wants it leaves the image's own
 bottom edge well above the ball. `lengthen()` stretches the last rows into more
 grass, blurs across the blades, darkens towards the bottom and crossfades the
-join.
+join. The 2026-09-03 plate needs less of it (extend .34 against the old .42) —
+its source already carries real grass below the goal — and the owner rejected
+a whole generation round whose foreground "dropped away", so if the invented
+band ever becomes visible in the page, fix the source, not the vignette.
 
 **Finding the goal is harder than it looks.** The posts are not the widest
 white thing in the frame: seen at an angle the side and back netting reaches

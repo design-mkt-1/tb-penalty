@@ -55,7 +55,7 @@
      again as wide as it looks, so a ball threading the gap beside it would be
      stopped by nothing at all. Re-run the tool after changing the render and
      paste what it reports. */
-  var RACK_BODY = { left: 0.1663, right: 0.8315, top: 0.1442, bottom: 0.8538 };
+  var RACK_BODY = { left: 0.1680, right: 0.8304, top: 0.1471, bottom: 0.8519 };
 
   /* The clearance a shot needs over or around the rack before it counts as
      having beaten it, as a fraction of the rack's height. Zero would let the

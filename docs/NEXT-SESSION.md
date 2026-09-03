@@ -42,17 +42,30 @@ Nothing in the game changed for any of it. The geometry is six fractions and
 four corner markers, and `js/aim.js` interpolates inside whatever shape it
 reads, so four cameras have cost four plates and some numbers — no logic.
 
+**And then the camera came close (2026-09-03).** The high-and-far plate pinned
+the goal at ~300px on every device — 76% of a phone, 20% of a desktop — because
+`--plate-w` was cqh-driven and pitch height barely varies. The owner asked for
+the scene to fill the screen and for the posts to be genuinely equal, so the
+plate was re-shot (nano-banana edit chain: framing → open background → flat
+continuous foreground; then 3:2 outpaint for sky and a 4K AI upscale), and the
+zoom was re-derived: goal ≈ 56% of a desktop's width, ≈ 87% of a phone's.
+`unit()` in js/stage.js was also fixed — it had been measuring the whole pitch
+instead of the mouth, so flight physics scaled with the viewport, not the goal.
+The owner rejected one whole generation round for a foreground band that
+"dropped away" (blurred stretched grass cloned from the shipped webp used as a
+style reference — reference the RAWS, never the shipped assets).
+
 ## What was measured, and what it is worth
 
 **The goal, as a quadrilateral.** Six numbers, and everything hangs off them:
 
 ```
-left post   x .4035   top .2804   base .3563
-right post  x .5914   top .2740   base .3647
+left post   x .2885   top .2849   base .4691
+right post  x .7160   top .2967   base .4679
 ```
 
 `python tools/cutout.py` prints these off the file it ships. They are NOT the
-numbers off the raw render — the tool adds 42% more foreground to the bottom,
+numbers off the raw render — the tool adds 34% more foreground to the bottom,
 which moves both vertical fractions. Re-run it against a new plate and paste
 what it prints into `css/game.css`. Verified by drawing the quad back over the
 photograph and confirming it lands on the painted frame.
@@ -61,20 +74,23 @@ Named left and right, by screen x, and not near and far: which post is nearer
 flips when the camera crosses the goal's axis, and a depth name would silently
 invert the aim on a plate that looked fine.
 
-The two posts agree to within .009 — the plate is head-on. They are still
+The two bases agree to within .002 and the tops to within .012 — the plate is
+head-on. They are still
 six numbers rather than four, because `js/aim.js` interpolates inside whatever
 shape the four markers describe and a rectangle is simply the case where they
 line up. Collapsing them would have to be undone the next time the camera moves.
 
-**The dummy rack inside its own canvas.** x .1663–.8315, y .1442–.8538.
+**The dummy rack inside its own canvas.** x .1680–.8304, y .1471–.8519.
 `RACK_BODY` in `js/game.js`, also printed by the tool. The rest of the element
 is empty canvas and must not block a shot.
 
 **The mouth's aspect, which is the one ratio to check after a re-shoot.**
-481 × 169 px in the photograph, and **3.12:1** once the corner markers render,
-against the 3:1 of a real goal seen dead on. That is the acceptance test for a
-render: the two angled plates measured 1:1 and 2.3:1, and neither failure stayed
-in the photograph (see *Bugs and traps*).
+1532 × 573 px in the photograph — **2.67:1** — against the 3:1 of a real goal
+seen dead on. That is the acceptance test for a render: the two angled plates
+measured 1:1 and 2.3:1, and neither failure stayed in the photograph (see *Bugs
+and traps*). Derive the ratio from the printed fractions, not from memory: an
+earlier revision of this file asserted 3.12:1 while the six fractions of that
+same plate gave 2.85:1, and `--t` was then under-derived from the wrong prose.
 
 **What the rack's width came to.** 54% of the mouth, measured off the rendered
 element — the reference's own figure. It is now pinned directly rather than left
@@ -131,7 +147,7 @@ to fall out of the height, which is what let it reach 82% and cover a prize.
   building on it — the two angled plates both looked plausible in isolation and
   neither survived being measured.
 * **The goal need not be in the middle of the plate.** On the current head-on
-  render it is, at .4975, so `--plate-x` computes to a quarter of a percent and does
+  render it is, at .5023, so `--plate-x` computes to a quarter of a percent and does
   nothing. On the plate before it the goal sat at .424, and hanging the
   photograph on the stage's centre line put the left post 11px from a 390px
   phone's edge with both left-hand prizes half off screen. Do not delete
@@ -142,9 +158,9 @@ to fall out of the height, which is what let it reach 82% and cover a prize.
   added, and went unnoticed only because the next plate happened to be centred.
 * **Target size is a fit constraint, not taste, and it moves with the camera.**
   Two rows have to live inside the mouth's height, which is 1/aspect of its
-  width. At 3.12:1 that is .32, so `--t` is .115. The .14 that suited the last
-  plate left four pixels of air and the targets touched the bar and the line;
-  the .18 before that did not fit at all.
+  width. At the current 2.67:1 that is .374, so `--t` is .14: two rows of .28
+  leave .094 of deliberate spacing. Re-derive it from the measured aspect on
+  every re-shoot — the previous value was derived from a stale prose claim.
 * **Numbers tuned for an old plate do not announce themselves.** The right-hand
   target column sat at u .85 against the left's .12 — .15 in from one post and
   .12 from the other — for two plates, because the angled composition had needed

@@ -27,19 +27,18 @@
      they can never disagree: at t=1 the ball is exactly on the target at
      exactly S_END of its size, whatever else is retuned.
 
-     0.22. The penalty game this grew from used 0.30, from twelve yards; this
-     is a free kick from about twenty metres. It dropped to 0.16, then 0.20,
-     across two angled plates that drew the goal ever smaller in frame, and it
-     comes back here because the head-on plate draws it at 298px on a 390px
-     phone -- within two pixels of what the first head-on build had, which is
-     where 0.22 was arrived at.
+     0.25. The penalty game this grew from used 0.30, from twelve yards; this
+     is a free kick from about twenty metres. It sat at 0.22 while the
+     head-on plate drew the goal at 298px on a 390px phone; the close-camera
+     plate of 2026-09-03 draws it at ~340px there, and the ball's arrival
+     size scales with the goal it arrives on: 0.22 x 340/298 = 0.25.
 
      Retune this whenever the plate's camera moves: it is the apparent size of
      the ball ON the goal, so it tracks how big the goal is in the frame. The
      check is not taste -- render the goal at a phone width, and if the goal's
-     on-screen width has moved much from 300px, this has to move with it. */
-  var S_END = 0.22;                 // apparent size on the goal line
-  var Z_END = 1 / S_END;            // 4.545 -- depth there
+     on-screen width has moved much from 340px, this has to move with it. */
+  var S_END = 0.25;                 // apparent size on the goal line
+  var Z_END = 1 / S_END;            // 4 -- depth there
 
   function depth(t)    { return 1 + (Z_END - 1) * t; }
   function progress(t) { return Z_END * t / depth(t); }

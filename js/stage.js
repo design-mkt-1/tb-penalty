@@ -38,14 +38,24 @@
     fx.getContext('2d').setTransform(k, 0, 0, k, 0, 0);
   }
 
-  /* The width of the goal as rendered, over the width it was designed at.
-     Everything in game.js that used to be a stage-logical pixel is a
-     multiple of this instead. */
+  /* The width of the goal MOUTH as rendered, over the width it was designed
+     at. Everything in game.js that used to be a stage-logical pixel is a
+     multiple of this instead.
+
+     Measured off the two base corner markers, NOT off .goal — .goal is
+     `inset: 0` on .pitch, so its box is the whole pitch. This function used
+     to measure that, which silently made every k()-scaled effect (arc lift,
+     deflections, gravity, confetti, shake) track the VIEWPORT's width
+     instead of the goal's: k came out ~4 on a 1440px laptop against ~1 on a
+     phone, and the flight physics behaved differently per device. The
+     markers are what js/aim.js already measures its drags against, so the
+     two now agree about what "the goal" is. */
   function unit() {
-    var goal = document.querySelector('.goal');
-    if (!goal) return 1;
-    var w = goal.getBoundingClientRect().width;
-    return w ? w / GOAL_REF : 1;
+    var l = document.querySelector('.goal__c[data-corner="left-base"]');
+    var r = document.querySelector('.goal__c[data-corner="right-base"]');
+    if (!l || !r) return 1;
+    var w = r.getBoundingClientRect().left - l.getBoundingClientRect().left;
+    return w > 0 ? w / GOAL_REF : 1;
   }
 
   var raf = 0;

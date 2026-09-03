@@ -62,7 +62,10 @@ QUALITY = {}
 # would not be — and losing a wheel to a tidy-up is a worse failure than
 # keeping a speck.
 JOBS = {
-    'dummies': ('_raw-dummies.png', 'grey', False, 520),
+    # 1040 rather than 520: at the close-camera zoom the rack body renders at
+    # ~860-1150 CSS px on a desktop, and the old export's ~620px body was
+    # visibly soft there. The raw is 1536 tall, so this is still a downscale.
+    'dummies': ('_raw-dummies.png', 'grey', False, 1040),
 }
 
 # The pitch plate keeps its background; it needs resizing and a longer
@@ -84,18 +87,21 @@ JOBS = {
 # into more of it convincingly — this is the same trick fs-penalty's plate
 # needed and for the same reason.
 PLATES = {
-    # 2560 rather than the usual 1920. This camera is high enough that the goal
-    # is only .19 of the plate's width, so css/game.css has to zoom about 1.7x
-    # harder than before to draw it at a usable size on a phone — and at 1920
-    # that zoom was enlarging the source. The raw render is 2752 wide, so 2560
-    # costs nothing but file size and stops the grass going soft.
+    # 3584 for the close-camera plate (re-shot 2026-09-03, AI-upscaled to
+    # 4096x2751 before this export). The goal is now ~.43 of the plate's width
+    # and a desktop draws the plate at ~2500-2800 CSS px, so 2560 would be
+    # enlarging the source at any dpr above 1 — 3584 keeps it a downscale.
+    # extend 0.34 rather than 0.42: the outpainted source already carries some
+    # real grass below the goal, so less has to be invented.
     # The band's LOWER edge matters as much as its upper one. At y1 = 0.50 it
     # cut through the right post and the finder reported its base at exactly
     # the band edge — a goal half as tall as it is, and a plausible-looking
     # 3.36:1 that was pure artefact. If a post's top or base comes back equal
     # to a band edge to three decimals, the band clipped it; widen and re-run.
-    'pitch-training': ('_raw-pitch-training.png', 2560, 78, 0.42,
-                       (0.08, 0.58, 0.18, 0.82)),
+    # x is kept off the frame edges so the floodlight masts (x ~ .07 and .93)
+    # stay out of the search.
+    'pitch-training': ('_raw-pitch-training.png', 3584, 78, 0.34,
+                       (0.30, 0.72, 0.22, 0.78)),
 }
 
 

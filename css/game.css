@@ -191,16 +191,16 @@
    game draws is hung off it.
 
    assets/img/pitch-training.webp is a training ground at dusk, shot square on
-   to the goal from high up and well back, so the camera looks down and the
-   pitch reads as a surface with its mowing stripes running away, rather than as
-   a band of grass seen edge-on. The goal is a rectangle on screen: both posts
-   the same height, the crossbar parallel to the top of the frame.
+   to the goal — re-shot 2026-09-03 with the camera much closer, so the goal
+   fills .4275 of the plate's width and the scene reads big on every device.
+   The goal is a rectangle on screen: both posts the same height, the crossbar
+   parallel to the top of the frame.
 
    Six numbers still describe it, and `python tools/cutout.py` prints all six
    off the file it has just written:
 
-       left post   x .4035   top .2804   base .3563
-       right post  x .5914   top .2740   base .3647
+       left post   x .2885   top .2849   base .4691
+       right post  x .7160   top .2967   base .4679
 
    as fractions of the plate. Every position below is interpolated between
    them. Re-run the tool against a new plate and paste what it prints; do not
@@ -221,10 +221,12 @@
    looked fine.
 
    HOW SQUARE-ON THE MOUTH READS IS THE ONE NUMBER TO CHECK AFTER A RE-SHOOT.
-   This plate measures 481 x 169 px — 2.85:1 — with the posts agreeing to .0091
-   in their tops and .0119 in their bases, which is what "head-on" means as a
-   number rather than as an opinion. A real 7.32 x 2.44 m goal is 3:1 seen dead
-   on, and every plate that has ever worked here has sat just under it.
+   This plate measures 1532 x 573 px — 2.67:1 — with the posts agreeing to
+   .0118 in their tops and .0012 in their bases, which is what "head-on" means
+   as a number rather than as an opinion. A real 7.32 x 2.44 m goal is 3:1 seen
+   dead on, and every plate that has ever worked here has sat just under it.
+   Derive the ratio from the printed fractions, never from prose: a stale
+   3.12:1 claim in the docs once under-derived the target size for two plates.
 
    ALWAYS VERIFY BY DRAWING THE QUAD BACK OVER THE PHOTOGRAPH. Two things this
    file was rebuilt on turned out to be artefacts of not doing that:
@@ -256,15 +258,15 @@
   translate: var(--shake-x, 0px) var(--shake-y, 0px);
 
   /* ── the measurement ──────────────────────────────────────── */
-  --gl-x: .4035;  --gl-t: .2804;  --gl-b: .3563;   /* left post  */
-  --gr-x: .5914;  --gr-t: .2740;  --gr-b: .3647;   /* right post */
+  --gl-x: .2885;  --gl-t: .2849;  --gl-b: .4691;   /* left post  */
+  --gr-x: .7160;  --gr-t: .2967;  --gr-b: .4679;   /* right post */
 
   /* Four figures every placement below is written against, so the arithmetic
      is stated once: the mouth's width across the plate, where its base line
      sits, where its centre is, and how tall it is. */
-  --g-w: calc(var(--gr-x) - var(--gl-x));          /* .1879 */
-  --g-base: calc((var(--gl-b) + var(--gr-b)) / 2); /* .3605 */
-  --g-cx: calc((var(--gl-x) + var(--gr-x)) / 2);   /* .4975 */
+  --g-w: calc(var(--gr-x) - var(--gl-x));          /* .4275 */
+  --g-base: calc((var(--gl-b) + var(--gr-b)) / 2); /* .4685 */
+  --g-cx: calc((var(--gl-x) + var(--gr-x)) / 2);   /* .5023 */
   /* The mouth's own height as a fraction of the plate's height. The rack is
      sized and stood off this, so it is written once here rather than typed as
      a literal into each of the two places that want it — which is how the last
@@ -273,7 +275,7 @@
 
   /* Slides the photograph sideways so the mouth lands on the stage's centre
      line whatever the plate does. On this head-on plate the goal is already at
-     .4951 of the width, so the shift is half a percent and invisible — but it
+     .5023 of the width, so the shift is a quarter percent and invisible — but it
      stays, because on the previous plate the goal sat at .424 and hanging the
      photograph on the centre put the left post 11px from a 390px phone's edge
      with both left-hand prizes half off it. Deleting it because today's render
@@ -298,30 +300,50 @@
      phone — and #stage clips. A photograph that runs off the frame is what a
      photograph does; a black bar is a bug.
 
-     The cqh term is what makes a phone zoom in, and it also has a floor to
-     meet: the plate has to reach past the bottom of the pitch far enough to
-     put grass under the ball, which sits in its own row below. Under about
-     140cqh the photograph's own bottom edge lands inside the ball row and the
-     ball stands on black.
+     Retuned 2026-09-03 for the close-camera plate (goal at .4275 of the
+     plate's width) after the owner asked for the scene to fill the screen on
+     every device. The two terms now do different jobs:
 
-     Retuned for the high camera, which holds the goal at only .188 of the
-     plate's width — the price of standing far enough back to see the pitch as a
-     surface. Goal size on screen is --plate-w times --g-w, and that is the
-     number to check after a re-shoot: 100cqw keeps a wide screen covered, and
-     295cqh draws a goal about 300px across on a 390px phone, which leaves the
-     posts clear of the edges and still lets four targets sit inside the mouth.
+     * 132cqw binds on wide pitches (desktop, tablet, landscape) and is simply
+       the goal's screen share: goal = --g-w x --plate-w = .4275 x 1.32 = 56%
+       of the viewport's width, the owner's "55-60%" ask with the crossbar
+       still inside the pitch on a 1440x900 (26px spare) and 1920x1080 (17px).
+       Push it past ~136 and the crossbar leaves the pitch on those screens.
 
-     That zoom is why tools/cutout.py writes this plate at 2560 rather than the
-     usual 1920: on a phone the plate renders about 1590 CSS px wide, and at
-     three device pixels each the 1920 source was being enlarged twofold. */
-  --plate-w: max(100cqw, 295cqh);
-  --plate-h: calc(var(--plate-w) * 2029 / 2560);
+     * 149cqh binds on tall pitches (phones) and is the COVER FLOOR plus a
+       margin. The plate has to reach the pitch's top edge AND reach far
+       enough below its bottom edge to put grass under the ball row, which is
+       19cqh of the stage (~30% of the pitch's height on a phone). Those two
+       together need plate-h >= pitch height + ball row, i.e.
+       plate-w >= 1.30 x pitchH / (3225/3584) = 144.5cqh; 149 leaves ~10px of
+       cover margin each way and draws the goal at ~340px on a 390px phone —
+       87% of the width, posts clear of the edges.
+
+     The outer min() is the crossbar's ceiling. The goal's top sits at
+     goal-base + plate-h x (--g-base - mean top) = 39cqh + plate-w x .16, and
+     past 381cqh of plate the crossbar leaves the pitch through the top. It
+     bound in practice on a 1920x1080 (relatively short pitch: the tagline
+     row eats more of a 16:9 screen), where the unclamped 132cqw put the bar
+     10px above the pitch. 372cqh keeps ~1.5cqh of margin; screens whose
+     pitch is taller (phones, 1440x900, 2560x1440) never reach it and keep
+     the full cqw zoom.
+
+     That zoom is why tools/cutout.py writes this plate at 3584: a desktop
+     draws it at ~2500-2800 CSS px, so even 2560 would be enlarging the
+     source at any dpr above 1. */
+  --plate-w: min(max(132cqw, 149cqh), 372cqh);
+  --plate-h: calc(var(--plate-w) * 3225 / 3584);
 
   /* Where the goal line meets the grass, measured up from the bottom of the
      pitch. This is the anchor and the plate hangs off it: the goal is the one
      thing that has to stay on screen in the same place at every size, so it
-     gets the fixed position and the photograph moves behind it. */
-  --goal-base: 44cqh;
+     gets the fixed position and the photograph moves behind it.
+
+     39cqh is not taste, it is the balance point of the two cover constraints
+     above at the phone floor: goal-base = (1 - 1.30 x --g-base) x 100cqh.
+     Move --g-base (a re-shoot) and this has to move with it, or one of the
+     plate's edges comes on screen on a phone. */
+  --goal-base: 39cqh;
   --plate-b: calc(var(--goal-base) - var(--plate-h) * (1 - var(--g-base)));
 
   /* ── the dummy rack ───────────────────────────────────────── */
@@ -367,9 +389,9 @@
      here, once, because three separate rules want them and they change with
      every re-render — typed as literals they went stale silently, which is how
      a .1796 from a two-plates-ago goal survived into a live stylesheet. */
-  --rack-body-w: .6652;   /* the figures' width inside their canvas */
-  --rack-body-h: .7096;   /* their height */
-  --rack-below:  .1462;   /* canvas left below their feet */
+  --rack-body-w: .6624;   /* the figures' width inside their canvas */
+  --rack-body-h: .7048;   /* their height */
+  --rack-below:  .1481;   /* canvas left below their feet */
 
   /* Centred on the mouth. The reference has its rack off to the right because
      its free kick is taken from the right; this shot is straight on, and the
@@ -377,7 +399,7 @@
   --rack-x: calc(var(--gl-x) + var(--g-w) * .5);   /* centre, across the plate */
   --rack-foot: calc(var(--g-base) + var(--g-h) * .55);  /* wheels, down the plate */
   --rack-w: calc(var(--plate-w) * var(--g-w) * .54 / var(--rack-body-w));
-  --rack-h: calc(var(--rack-w) * 520 / 932 * var(--rack-body-h));
+  --rack-h: calc(var(--rack-w) * 1040 / 1863 * var(--rack-body-h));
 }
 
 /* The stadium plate. */
@@ -395,8 +417,13 @@
      visible seam across the grass in the landscape layout, where the pitch is
      only the left column. On the plate it has nowhere to end that anyone can
      see. */
+  /* The bright centre sits on the goal's own axis — the owner asked for the
+     scene to be symmetric, and 44% was a leftover eyeballed against a plate
+     whose goal sat elsewhere. Written against --g-cx it follows the measured
+     goal on any future plate. The 40% vertical is kept: light slightly above
+     centre, sky left dark (owner's pick, gate E, 2026-09-03). */
   background:
-    radial-gradient(80% 74% at 44% 40%,
+    radial-gradient(80% 74% at calc(var(--g-cx) * 100%) 40%,
       transparent 26%, rgba(4, 4, 5, .78) 100%),
     url("../assets/img/pitch-training.webp") center / 100% 100% no-repeat;
   pointer-events: none;
@@ -451,17 +478,19 @@
      mouth.
 
      A fit constraint rather than taste, and it has to be re-derived every time
-     the camera moves. Two rows have to live inside the mouth's height, which is
-     1/aspect of its width: at 3.12:1 that is .32 of the width, so two rows of
-     .14 come to .28 and leave four pixels of air on a phone — the targets
-     touched the crossbar and the goal line. .115 leaves .09 to share between
-     the bar, the middle and the line, which reads as deliberate spacing.
+     the camera moves. Two rows have to live inside the mouth's height, which
+     is 1/aspect of its width: this mouth measures 2.67:1, so its height is
+     .374 of its width, and two rows of .14 come to .28 — leaving .094 to
+     share between the bar, the middle and the line, which reads as deliberate
+     spacing. (The old .115 was derived against a claimed 3.12:1 that the
+     measurement never supported; the real 2.85:1 mouth had .12 of slack, and
+     this one has more headroom still.)
 
      Perspective scaling was tried, sizing each target off the goal's height at
      its own place across the mouth. That is the right thing on a strongly
      angled plate; head-on the two posts are the same height and it would be
      arithmetic that can only ever return the same answer twice. */
-  --t: calc(var(--g-w) * var(--plate-w) * .115);
+  --t: calc(var(--g-w) * var(--plate-w) * .14);
 
   position: absolute;
   left: calc(50% + var(--plate-x) + var(--plate-w) * (var(--tx) - .5));
@@ -481,8 +510,8 @@
 /* All four placed here rather than inline in the markup, so the geometry is
    in one file with the six numbers it is derived from. */
 /* Two columns hugging the posts and two rows splitting the mouth. A target is
-   .403 of the mouth's height, so a row centred at .23 reaches from .03 to .43
-   and one at .77 from .57 to .97: clear of the crossbar, clear of the line,
+   .374 of the mouth's height, so a row centred at .25 reaches from .06 to .44
+   and one at .75 from .56 to .94: clear of the crossbar, clear of the line,
    and with a band of open net between them for a ball to pass through. */
 /* Symmetric, and the pairs are written to show it: .12 from the left post and
    .12 from the right, .25 from the crossbar and .25 from the line.
@@ -565,7 +594,7 @@
 .target__back i {
   font-style: normal;
   font-weight: var(--fw-bold);
-  font-size: calc(var(--t) * .17);
+  font-size: calc(var(--t) * .19);
   text-transform: uppercase;
   letter-spacing: .06em;
   opacity: .88;
@@ -623,7 +652,7 @@
   /* Width is what is set — see --rack-w — and aspect-ratio gives the height.
      Setting the height here instead is what made the width an accident. */
   width: var(--rack-w);
-  aspect-ratio: 932 / 520;
+  aspect-ratio: 1863 / 1040;
   translate: -50% 0;
   pointer-events: none;
 }
@@ -667,9 +696,14 @@
   z-index: 8;
   left: var(--hit-x, 50%);
   top: var(--hit-y, 50%);
-  width: calc(var(--plate-w) * .06);
+  /* A share of the GOAL's width, not the plate's. It was .06 of the plate
+     when the goal was .188 of the plate — the same .32 of the mouth this
+     states directly. Written plate-relative it would have halved the moment
+     the close-camera plate made the goal .4275 of the plate. */
+  width: calc(var(--g-w) * var(--plate-w) * .32);
   aspect-ratio: 1;
-  margin: calc(var(--plate-w) * -.03) 0 0 calc(var(--plate-w) * -.03);
+  margin: calc(var(--g-w) * var(--plate-w) * -.16) 0 0
+          calc(var(--g-w) * var(--plate-w) * -.16);
   border-radius: 50%;
   background: radial-gradient(closest-side,
               transparent 56%,
